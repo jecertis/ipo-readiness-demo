@@ -1,0 +1,1798 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Readiness prototype</title>
+<style>
+/* Neutral slate palette for the public demonstration. */
+:root{
+  --brand:#33475b; --brand-soft:#e3e9ef; --brand-ink:#ffffff; --pink:#2f6fb0; --header-bg:#33475b; --header-ink:#ffffff;
+  --ink:#282828; --muted:#6e6e6e; --line:#e2e2e2; --bg:#f1f4f7; --surface:#ffffff;
+  --ok:#0a7a4f; --ok-soft:#ebf9f8; --warn:#8a5a00; --warn-soft:#fff3d6; --bad:#b0103f; --bad-soft:#fde6ef;
+  --side-bg:#ffffff; --side-ink:#282828;
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+/* Dark palette: the header keeps the brand colour; accents are lifted so text on dark stays readable. */
+:root[data-theme="dark"]{
+  --brand:#8fb3d9; --brand-soft:#1f2a36; --brand-ink:#0f1720; --pink:#8fb3d9; --header-bg:#33475b; --header-ink:#ffffff;
+  --ink:#e8ecf0; --muted:#a7b0bb; --line:#303741; --bg:#14171c; --surface:#1d2229;
+  --ok:#5fcf8c; --ok-soft:#173a27; --warn:#f0b443; --warn-soft:#3d2d0a; --bad:#ff8a80; --bad-soft:#40201d;
+  --side-bg:#1d2229; --side-ink:#e8ecf0;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.55}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
+.bar{position:sticky;top:0;z-index:40;background:var(--header-bg);color:var(--header-ink);display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;padding:12px 32px;min-height:92px}
+.util{display:flex;gap:6px;flex-wrap:nowrap;margin-left:auto}
+.util:not(.float){padding-left:12px;border-left:1px solid rgba(255,255,255,.35)}
+.vb{width:32px;height:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:transparent;color:var(--header-ink);border:1px solid rgba(255,255,255,.55)}
+.vb:hover{background:rgba(255,255,255,.22)}
+.vb[aria-pressed="true"]{background:rgba(255,255,255,.22)}
+.vb:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
+.util.float .vb{background:var(--surface);color:var(--brand);border-color:var(--line)}
+.util.float{position:fixed;top:10px;right:12px;z-index:60}
+body.hdr-hidden .ctl{display:none}
+body.hdr-hidden .crumbs{display:none}
+body.hdr-hidden .bar{padding:4px 20px;min-height:0}
+body.hdr-hidden .side .brand{min-height:0}
+body.hdr-hidden .logo{height:22px}
+body.hdr-hidden .pname{font-size:14px}
+.brand{display:flex;align-items:center;gap:12px;min-height:38px}
+.logo{height:34px;width:auto;display:block}
+.logoslot{display:inline-grid;place-items:center;min-width:90px;height:30px;padding:0 8px;border:1px dashed rgba(255,255,255,.6);border-radius:6px;font-size:12px}
+.pname{font-weight:700;font-size:16px;letter-spacing:.02em}
+.ctl{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-left:auto;font-size:14px}
+.ctl label{opacity:.85}
+.ctl select{background:var(--surface);color:var(--ink);border:0;border-radius:6px;padding:5px 8px;max-width:230px}
+.hb{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:6px;padding:5px 10px}
+.hb:hover{background:rgba(255,255,255,.25)}
+.crumbs{width:100%;font-size:14px;opacity:.9}
+.wrap{max-width:1080px;margin:0 auto;padding:24px 32px 96px}
+.steps{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px;padding:0;list-style:none}
+.steps li{flex:1 1 150px}
+.step{width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-bottom:4px solid var(--line);border-radius:6px;padding:8px 12px;color:var(--muted)}
+.step b{display:block;font-size:12px;font-weight:700}
+.step.done{border-bottom-color:var(--ok);color:var(--ok)}
+.step.current{border-bottom-color:var(--brand);color:var(--ink);font-weight:600}
+.step.attn::after{content:" ●";color:var(--pink)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px 24px}
+.card+.card,.card+section,section+.card{margin-top:24px}
+.card.attn{border-left:5px solid var(--pink)}
+.card h2,.card h3{margin:0 0 8px}
+h1{font-size:28px;line-height:1.2;margin:0 0 8px}
+h2{font-size:20px}
+h3{font-size:16px}
+.sub{color:var(--muted);margin:0}
+p{max-width:72ch}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.spread{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+.btn{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:8px 16px;font-weight:600}
+.btn.busy::before{content:"";display:inline-block;width:12px;height:12px;margin-right:8px;vertical-align:-2px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.fresh{animation:fresh 1.6s ease-out}
+@keyframes fresh{from{background:var(--brand-soft)}to{background:transparent}}
+.btn.lnk{border:0;background:transparent;color:var(--brand);padding:4px 0}
+.btn.p{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.chip{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--brand-soft);color:var(--brand);white-space:nowrap}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.bad{background:var(--bad-soft);color:var(--bad)}
+.chip.plain{background:transparent;border:1px solid var(--line);color:var(--muted)}
+.next{background:var(--brand-soft);border:1px solid var(--line);border-radius:10px;padding:20px 24px;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;margin-bottom:24px}
+.next .eyebrow{font-size:14px;color:var(--brand);font-weight:700}
+.next h2{margin:2px 0 4px}
+.next p{margin:0}
+.next .sub{color:var(--ink)}
+.next .chip.plain{color:var(--ink);border-color:var(--ink)}
+.next details{margin-top:8px;font-size:14px}
+.flash{background:var(--warn-soft);border:1px solid var(--line);color:var(--warn);border-radius:10px;padding:12px 16px;margin-bottom:16px}
+.grid>.card{margin-top:0}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.path{display:flex;gap:0;overflow-x:auto;padding:4px 0 8px}
+.node{flex:1 0 118px;position:relative;padding-top:24px;font-size:12px;color:var(--muted);padding-right:8px}
+.node::before{content:"";position:absolute;top:7px;left:0;right:0;height:3px;background:var(--line)}
+.node::after{content:"";position:absolute;top:1px;left:0;width:14px;height:14px;border-radius:50%;background:var(--surface);border:3px solid var(--line)}
+.node.d::before{background:var(--ok)}.node.d::after{border-color:var(--ok);background:var(--ok)}
+.node.n::after{border-color:var(--brand);background:var(--brand);box-shadow:0 0 0 5px var(--brand-soft)}
+.node.n{color:var(--ink);font-weight:600}
+.node b{display:block;font-size:12px;font-weight:700}
+.todo{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.num{width:26px;height:26px;border-radius:50%;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center;font-weight:700;font-size:12px}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.tblw{overflow-x:auto}
+.cite{font-family:var(--font);font-size:12px;color:var(--muted)}
+.quote{font-family:var(--mono);font-size:14px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px 12px;white-space:pre-wrap;word-break:break-word}
+.hl{background:var(--warn-soft);outline:2px solid #e3b341;border-radius:6px;padding:0 3px}
+.focus{display:grid;gap:12px;grid-template-columns:minmax(220px,1fr) minmax(0,1.5fr)}
+@media(max-width:760px){.focus{grid-template-columns:1fr}}
+.fact{display:flex;justify-content:space-between;gap:8px;align-items:center;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-bottom:6px}
+.fact.sel{border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand)}
+.big{font-size:28px;font-weight:700;line-height:1.1}
+.field{display:block;margin-top:16px;max-width:480px}.field span{display:block;font-size:14px;font-weight:600;margin-bottom:4px}
+.modal .field{max-width:none}
+input[type=text],input[type=number],input:not([type]),select.f{width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink)}
+.inline{display:inline-block;width:110px}
+.drawer{position:fixed;right:0;top:0;bottom:0;width:min(400px,100%);background:var(--surface);border-left:1px solid var(--line);box-shadow:-10px 0 30px rgba(0,0,0,.15);display:flex;flex-direction:column;z-index:50}
+.dh{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.db{padding:14px;overflow:auto;flex:1;display:flex;flex-direction:column;gap:10px;font-size:14px}
+.df{padding:10px 14px;border-top:1px solid var(--line)}
+.bub{padding:10px 12px;border-radius:10px;background:var(--bg);border:1px solid var(--line)}
+.bub.me{align-self:flex-end;background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.center{min-height:100vh;display:grid;place-items:center;padding:24px;text-align:center}
+.splash{background:var(--header-bg);color:#fff}
+.splash .logo{height:56px;margin:0 auto 16px}
+.splash .btn{color:var(--header-bg);background:#fff;border-color:#fff}
+.loadbar{height:6px;border-radius:99px;background:rgba(255,255,255,.3);overflow:hidden;width:220px;margin:18px auto}
+.loadbar i{display:block;height:100%;width:70%;background:#fff}
+.login{max-width:380px;width:100%;text-align:left}
+.foot{color:var(--muted);font-size:12px;text-align:center;padding:18px 20px}
+.skip{position:absolute;left:-999px;top:0;background:#fff;color:#33475b;padding:8px 12px;z-index:100;border-radius:0 0 10px 0}
+.skip:focus{left:0}
+html{scroll-padding-top:120px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+/* E12 layout: sidebar, top bar actions, menus, accordions, steps carousel */
+.side{position:fixed;left:0;top:0;bottom:0;width:224px;background:var(--side-bg);color:var(--side-ink);border-right:1px solid var(--line);overflow:auto;padding:0 12px 16px;z-index:45}
+.side .brand{margin:0 -12px 8px;padding:12px;min-height:92px;background:var(--header-bg);color:var(--header-ink);flex-wrap:wrap;gap:8px}
+.side .logo{height:26px}
+.side .pname{font-size:16px}
+.side .sg{margin-top:16px}
+.sgl{display:block;font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:700}
+.side select{width:100%;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:8px}
+.sbtn{display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;background:transparent;color:var(--side-ink);border:0;border-left:3px solid transparent;border-radius:6px;padding:8px 12px;margin:2px 0;font-weight:600;font-size:14px}
+.sbtn:hover{background:var(--bg)}
+.sbtn.cur{background:var(--brand-soft);color:var(--brand);border-left-color:var(--brand)}
+body.has-side .bar,body.has-side .wrap,body.has-side .foot{margin-left:224px}
+body.side-rail .side{width:64px;padding:0 8px 16px}
+body.side-rail.has-side .bar,body.side-rail.has-side .wrap,body.side-rail.has-side .foot{margin-left:64px}
+.sidetog{margin-left:auto;background:rgba(255,255,255,.14);color:var(--header-ink);border:1px solid rgba(255,255,255,.4);border-radius:6px;width:28px;height:28px;font-size:20px;line-height:1;padding:0}
+.sidetog:hover{background:rgba(255,255,255,.28)}
+.side.is-rail .brand{flex-direction:column;align-items:center;margin:0 -8px 8px}
+.side.is-rail .logo{width:36px;height:24px;object-fit:cover;object-position:left center}
+.side.is-rail .sidetog{margin:8px 0 0;width:36px}
+.sbtn.rail{justify-content:center;position:relative;padding:9px 0;border-left:0}
+.dotb{position:absolute;top:6px;right:10px;width:8px;height:8px;border-radius:50%;background:var(--brand)}
+@media(max-width:900px){.side{position:static;width:auto;max-height:none}body.has-side .bar,body.has-side .wrap,body.has-side .foot{margin-left:0}}
+.actions{display:flex;gap:6px;align-items:center;margin-left:auto}
+.bar .vb{background:transparent;color:var(--header-ink);border:1px solid rgba(255,255,255,.55);list-style:none}
+.acct{position:relative}
+.acct summary::-webkit-details-marker{display:none}
+.pop{position:absolute;right:0;top:calc(100% + 6px);min-width:230px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.25);padding:6px;z-index:80}
+.mi{display:flex;gap:10px;align-items:center;width:100%;text-align:left;background:transparent;color:var(--ink);border:0;border-radius:6px;padding:8px 10px;font-weight:600;font-size:14px}
+.mi:hover{background:var(--brand-soft)}
+.menu{position:relative;display:inline-block}
+.menu summary{list-style:none;cursor:pointer}
+.menu summary::-webkit-details-marker{display:none}
+.menu .pop{right:auto;left:0}
+.acc{margin-top:24px}
+.pagehead{margin-bottom:24px}.pagehead h1{margin:0}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 20px}
+.ref{margin-top:48px}.ref h2{margin:0 0 16px}
+.acch{margin:0;font-size:16px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.accb{background:transparent;border:0;padding:0;font:inherit;font-weight:700;color:var(--ink);text-align:left}
+.accs{font-weight:400;font-size:14px}
+.car{display:inline-block;width:1em;color:var(--brand)}
+.steps-car{margin:0 0 24px;padding:8px 0 12px;border-bottom:1px solid var(--line)}
+.steps-car.open .sc-card{margin-top:8px}
+.sc-h{margin:0;font-size:16px}
+.sc-card h3{margin:4px 0}
+.dots{display:inline-flex;gap:6px;margin-left:8px}
+.dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--brand);background:transparent;padding:0}
+.dot.done{background:var(--ok);border-color:var(--ok)}
+.dot.cur{box-shadow:0 0 0 3px var(--brand-soft);border-color:var(--brand)}
+.helpd{right:0}
+.who{margin-top:14px;font-size:12px}
+.modnav{display:flex;flex-wrap:wrap;gap:4px;width:100%;border-top:1px solid rgba(255,255,255,.25);padding-top:6px;margin-top:2px}
+.mtab{background:transparent;color:var(--header-ink);border:0;border-bottom:3px solid transparent;border-radius:6px 6px 0 0;padding:6px 12px;font-weight:600;font-size:14px}
+.mtab:hover{background:rgba(255,255,255,.14)}
+.mtab.cur{border-bottom-color:var(--header-ink);background:rgba(255,255,255,.18)}
+.badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:99px;background:var(--brand);color:var(--brand-ink);font-size:12px;font-weight:700;text-align:center}
+body.hdr-hidden .modnav{display:none}
+.rail{display:flex;flex-wrap:wrap;gap:6px;list-style:none;padding:0;margin:12px 0 0;counter-reset:r}
+.rail li{counter-increment:r;border:1px solid var(--line);border-radius:99px;padding:3px 12px;font-size:12px;color:var(--muted)}
+.rail li::before{content:counter(r) ". ";font-weight:700;color:var(--brand)}
+ul.plain{list-style:none;margin:6px 0;padding:0}ul.plain li{padding:4px 0}
+.lab{font-size:12px;font-weight:600}
+.trail{margin-top:8px}
+.sugrow{background:transparent;border:0;padding:0;text-align:left;color:var(--ink);font:inherit}
+.finding{border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-top:8px}
+/* E13: suggested changes, the live scan, rings and banners */
+.finding.sev-block{border-left:4px solid var(--bad)}.finding.sev-review{border-left:4px solid var(--warn)}.finding.sev-ok{border-left:4px solid var(--ok)}
+.finding.st-accepted{border-left-color:var(--ok)}.finding.st-rejected{border-left-color:var(--bad);background:var(--bad-soft)}
+.sxs{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:8px}
+.pane{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.pane .ph{font-size:12px;font-weight:600;color:var(--muted);background:var(--bg);padding:8px 12px;border-bottom:1px solid var(--line)}
+.pane .pb{padding:12px}
+.fix{background:var(--brand-soft);border-radius:6px;padding:8px 12px;margin-top:8px}
+.req{background:var(--warn-soft);border-left:3px solid var(--warn);border-radius:6px;padding:8px 12px;margin-top:8px}
+.ring{width:120px;height:120px;border-radius:50%;display:grid;place-items:center;margin:4px 0}
+.ring>div{width:88px;height:88px;border-radius:50%;background:var(--surface);display:grid;place-items:center;text-align:center;line-height:1.1}
+.pbar{height:6px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:8px}.pbar i{display:block;height:100%;background:var(--ok)}
+.scan{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:10px}
+.ssec{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line)}
+.ssec.pending{opacity:.5}.ssec.scanning b{color:var(--brand)}.ssec .r{margin-left:auto}
+.omission{background:var(--bad-soft);border:1px solid var(--line);border-left:4px solid var(--bad);border-radius:10px;padding:12px 16px;margin-top:8px}
+.omission b{color:var(--bad)}
+.clear{background:var(--ok-soft);border:1px solid var(--line);border-left:4px solid var(--ok);border-radius:10px;padding:12px 16px;margin-top:8px}
+.clear b{color:var(--ok)}
+.zones{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:8px}
+.zone{border:1px solid var(--line);border-radius:10px;padding:16px}.zone.truth{border-top:3px solid var(--ok)}.zone.rev{border-top:3px solid var(--brand)}
+.ta{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);font:inherit}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:70}
+.modal{position:fixed;z-index:71;left:50%;top:50%;transform:translate(-50%,-50%);width:min(680px,94vw);max-height:88vh;overflow:auto;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+@media print{body.has-modal header,body.has-modal main,body.has-modal aside,body.has-modal .modal-bg,body.has-modal .util,body.has-modal .modal .btn{display:none!important}body.has-modal .modal{position:static;transform:none;box-shadow:none;border:0;width:auto;max-height:none}}
+
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.tab{background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:5px 12px}
+.tab.on{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.swatch{display:inline-block;width:14px;height:14px;border-radius:6px;vertical-align:-2px;margin-right:6px;border:1px solid var(--line)}
+@media print{.bar,.steps,.next,.drawer,.foot,button,.flash,select,.tabs{display:none !important}body{background:#fff}.wrap{padding:0;max-width:none}.card{border:0}}
+pre.report{white-space:pre-wrap;font-family:var(--mono);font-size:14px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:12px}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div id="root"></div>
+<footer class="foot">Demonstration with hard-coded data. No server, no model, no real files are used. Figures for the real filings come from the offer documents; Synthetic cases have no filing behind them.</footer>
+<script src="filings-data.js"></script>
+<script src="guidance.js"></script>
+<script src="filings.js"></script>
+<script src="regs-data.js"></script>
+<script src="ganges-data.js"></script>
+<script src="schedule6-coverage-data.js"></script>
+<script src="demo.js"></script>
+<script src="modules.js"></script>
+<script src="guide.js"></script>
+<script>
+(function () {
+  'use strict';
+  var G = window.Guidance, D = window.Demo, O = G.OUTCOME;
+  var KEY = 'readinessDemo.v3';
+  var THEME_KEY = 'readinessDemo.theme', HDR_KEY = 'readinessDemo.header', SIDE_KEY = 'readinessDemo.side';
+  var VIEW = {}, ACT = {};
+  var app = { open: {}, visited: {}, guide: { open: false, i: null }, gaps: true, rtab: 'match', dtab: 'register', side: 'shown', help: false, theme: 'light', hdr: 'shown', role: 'analyst', person: 'p3', people: null, depFilter: '', depShow: 20, keyreview: null, krFiling: 'vishal_mega_mart', krStatus: '', krShow: 12, deal: 'torrent', view: 'splash', sel: null, ask: false, askLog: [], tab: 'users', flash: '', states: {}, anchor: null, host: 'hybrid', brand: 'slate' };
+  var BRANDS = { burgundy: ['#33475b', '#e3e9ef'], teal: ['#0b6e6e', '#dff1f0'], slate: ['#33475b', '#e3e9ef'] };
+  var VIEW_NAME = { portfolio: 'All deals', keyreview: 'Answer key', drhp: '1 · DRHP Review', review: '2 · Review Module', diligence: '3 · Diligence Module', projects: 'My projects', vault: 'Evidence vault', deps: 'Task dependencies', home: 'Dashboard', docs: 'Documents uploaded', facts: 'Confirm facts', results: 'Check results', report: 'Report', settings: 'Settings', audit: 'Audit trail' };
+  var KIND_LABEL = { positive: 'Positive case', negative: 'Negative case', neutral: 'Neutral case', real: 'Real filing' };
+
+  function esc(x) { return String(x === null || x === undefined ? '' : x).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function $(id) { return document.getElementById(id); }
+  function fmt(n) { return n === null || n === undefined ? 'Data not available' : Number(n).toLocaleString('en-IN', { maximumFractionDigits: 3 }); }
+  function S() { return app.states[app.deal]; }
+  function deal() { return D.DEALS.filter(function (d) { return d.id === app.deal; })[0]; }
+  function depsOf(s) { if (!s.deps) s.deps = D.newDeps(); return s.deps; }
+  function person() { return (app.people || []).filter(function (p) { return p.id === app.person; })[0]; }
+  function visibleDeals() { return D.dealsFor(app.people || [], app.person); }
+  // Keeps role and current deal consistent with who is viewing: a person only ever sees their own deals.
+  function syncPerson() {
+    var p = person();
+    if (p) app.role = p.role;
+    var vis = visibleDeals();
+    if (!vis.some(function (d) { return d.id === app.deal; })) app.deal = vis.length ? vis[0].id : null;
+  }
+  function ensure() { D.DEALS.forEach(function (d) { if (!app.states[d.id]) app.states[d.id] = D.resetState(d.id); }); }
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (raw) { var o = JSON.parse(raw); if (o && o.states) { for (var k in o) app[k] = o[k]; app.flash = ''; app.ask = false; app.scan = null; } }
+    } catch (e) { /* no storage: start fresh */ }
+    ensure();
+    if (!app.people) app.people = D.newPeople();
+    // The rule-approval role was retired (E15-4): drop that person from a saved session.
+    app.people = (app.people || []).filter(function (p) { return p.role !== 'reviewer'; });
+    // E15: the BRLM reviewer joined Project Kaveri (the deal with the V1/V2 pair), once, so saved sessions match a fresh one.
+    if (!app.migE15) { app.migE15 = true; app.people.forEach(function (p) { if (p.id === 'p3' && p.deals.indexOf('kaveri') < 0) p.deals.push('kaveri'); }); }
+    app.deciding = null;
+    if (!app.people.some(function (p) { return p.id === app.person; })) app.person = 'p3';
+    delete app.rulebook; delete app.rbFilter; delete app.rbShow;
+    if (!app.keyreview) app.keyreview = D.newKeyReview();
+    if (!person()) app.person = 'p3';
+    syncPerson();
+    app.view = 'splash';   // each visit starts at the splash and sign-in; deal data is kept
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(app)); } catch (e) { /* ignore */ } }
+
+  // Theme and header visibility are per-viewer conveniences, kept apart from deal state so a reset never touches them.
+  function initView() {
+    var t = null, h = null, sd = null;
+    try { t = localStorage.getItem(THEME_KEY); h = localStorage.getItem(HDR_KEY); sd = localStorage.getItem(SIDE_KEY); } catch (e) { /* no storage */ }
+    app.side = sd === 'rail' ? 'rail' : 'shown';
+    if (t !== 'dark' && t !== 'light') {
+      t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+    }
+    app.theme = t;
+    app.hdr = h === 'hidden' ? 'hidden' : 'shown';
+  }
+  function setTheme(t) {
+    app.theme = t;
+    try { localStorage.setItem(THEME_KEY, t); } catch (e) { /* ignore */ }
+  }
+  function fullscreenOn() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+  var ICON = {
+    up: '<path d="M6 15l6-6 6 6"/>', down: '<path d="M6 9l6 6 6-6"/>',
+    enter: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>', leave: '<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+    gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+    help: '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4.5M12 17.5h.01"/>',
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>',
+    menu: '<path d="M3 6h18M3 12h18M3 18h18"/>',
+    out: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+    moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/>'
+  };
+  // View controls: icon-only and styled apart from the flow buttons; the name lives in aria-label and title.
+  function vb(act, icon, label, pressed, extra) {
+    return '<button class="vb" data-act="' + act + '"' + (extra || '') + ' aria-label="' + label + '" title="' + label + '"' +
+      (pressed === null ? '' : ' aria-pressed="' + pressed + '"') + '>' +
+      '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[icon] + '</svg></button>';
+  }
+  function utilButtons(withHeaderToggle) {
+    var hid = app.hdr === 'hidden', fs = fullscreenOn(), dk = app.theme === 'dark';
+    return '<span class="util' + (withHeaderToggle ? '' : ' float') + '" role="group" aria-label="View controls">' +
+      (withHeaderToggle ? vb('nav', 'gear', 'Settings', null, ' data-view="settings"' + (app.view === 'settings' ? ' aria-current="page"' : '')) + vb('hdr-toggle', hid ? 'down' : 'up', hid ? 'Show header' : 'Hide header', hid) : '') +
+      vb('fullscreen', fs ? 'leave' : 'enter', fs ? 'Exit full screen' : 'Full screen', fs) +
+      vb('theme-toggle', dk ? 'sun' : 'moon', dk ? 'Switch to light mode' : 'Switch to dark mode', dk) +
+      (withHeaderToggle ? vb('signout', 'out', 'Sign out', null) : '') + '</span>';
+  }
+
+  /* ---- navigation, top bar, help and the Your steps carousel (E12) ---- */
+  var SIDE_GROUPS = [
+    ['Deals', [['portfolio', 'All deals', 'view_portfolio'], ['home', 'Dashboard']]],
+    ['Work', [['drhp', '1 · DRHP Review'], ['review', '2 · Review Module'], ['diligence', '3 · Diligence Module']]],
+    ['Records', [['projects', 'My projects'], ['vault', 'Evidence vault'], ['audit', 'Audit trail']]],
+    ['Tools', [['keyreview', 'Answer key'], ['deps', 'Task dependencies']]]
+  ];
+  var ICON_HELP = {
+    gear: { name: 'Settings', what: 'People and roles, deal teams, house rules, hosting, export, appearance.', who: 'Everyone sees it; only the firm admin changes people and teams.' },
+    up: { name: 'Hide header', what: 'Collapses the top bar to a thin strip so the working area is larger.', who: 'Everyone.' },
+    down: { name: 'Show header', what: 'Brings the top bar back.', who: 'Everyone.' },
+    enter: { name: 'Full screen', what: 'Fills the screen, for presenting.', who: 'Everyone. Escape leaves it.' },
+    leave: { name: 'Exit full screen', what: 'Leaves full screen.', who: 'Everyone.' },
+    sun: { name: 'Switch to light mode', what: 'Light colours.', who: 'Everyone; your choice is remembered.' },
+    moon: { name: 'Switch to dark mode', what: 'Dark colours.', who: 'Everyone; your choice is remembered.' },
+    out: { name: 'Sign out', what: 'Returns to the sign-in screen. Deal data is kept.', who: 'Everyone.' },
+    help: { name: 'Help', what: 'This panel: what each control does, and what the current screen is for. Shortcut: ?', who: 'Everyone.' },
+    user: { name: 'Account and view menu', what: 'Settings, light or dark colours, full screen, hide the header or the sidebar, sign out.', who: 'Everyone.' },
+    menu: { name: 'Collapse the sidebar', what: 'Shrinks the navigation on the left to a column of icons, or opens it again. The arrow on the panel does the same. In the column, hover or focus an icon to see the screen\'s name.', who: 'Everyone; your choice is remembered.' }
+  };
+  var SCREEN_HELP = {
+    portfolio: { purpose: 'All the deals you may see, most urgent first.', next: 'Open the deal at the top, or filter by kind or status.', who: 'ECM Head and firm admin.' },
+    home: { purpose: 'One deal at a glance: completeness, flags, the next key date and your next steps.', next: 'Do the next step shown under the figures.', who: 'Everyone on the deal team.' },
+    drhp: { purpose: 'Score the filing against Schedule VI, Part A and compare versions.', next: 'Run the DRHP review, then look at the gaps.', who: 'BRLM reviewer and ECM Head act; counsel reads; the issuer files documents.' },
+    review: { purpose: 'First-pass checks before anything reaches counsel: match a source of truth, or test a document for authenticity.', next: 'Create a review project or run the intelligence check.', who: 'BRLM reviewer and ECM Head.' },
+    diligence: { purpose: 'Check people and promoters for litigation, save matters, decide materiality, reconcile with the DRHP.', next: 'Run a check, save a matter, then decide materiality.', who: 'BRLM reviewer runs checks; the ECM Head decides materiality and assigns agents.' },
+    projects: { purpose: 'Your saved work on this deal: reviews, runs, opinions and counsel drafts.', next: 'Open the item you left unfinished.', who: 'BRLM reviewer, ECM Head and external counsel (drafts only).' },
+    vault: { purpose: 'Each disclosure linked to its page and quote, with a status that follows the review.', next: 'Look at the rows marked Itemisation pending.', who: 'Everyone on the deal team.' },
+    audit: { purpose: 'Every action, time-stamped with the person.', next: 'Export it for the file if you are allowed.', who: 'ECM Head and firm admin export; others read.' },
+    docs: { purpose: 'Add the deal folder or documents and see what was found and what is missing.', next: 'Confirm any scanned file in the queue.', who: 'BRLM reviewer and ECM Head.' },
+    facts: { purpose: 'Check each extracted figure against its page and quote, then confirm it.', next: 'Confirm the first fact, or flag it for a colleague.', who: 'BRLM reviewer and ECM Head.' },
+    results: { purpose: 'The result of each ICDR check, with the regulation and page it rests on.', next: 'Clear what is waiting on information, then record judgements.', who: 'BRLM reviewer prepares; the ECM Head records judgements.' },
+    report: { purpose: 'The review report: generated by one person, approved by another.', next: 'Generate it when nothing is waiting; the ECM Head approves.', who: 'BRLM reviewer generates; the ECM Head approves.' },
+    settings: { purpose: 'People, deal teams, house rules, hosting, export and appearance.', next: 'Choose a tab.', who: 'Firm admin changes; others read.' },
+    keyreview: { purpose: 'The extracted fields with their quotes, confirmed or disputed by the team.', next: 'Confirm or dispute a field, with a note when disputing.', who: 'BRLM reviewer and ECM Head.' },
+    deps: { purpose: 'Links between plan tasks inferred from their wording, awaiting acceptance.', next: 'Accept or reject a link.', who: 'ECM Head.' }
+  };
+
+  var SIDE_ICON = {
+    portfolio: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+    home: '<path d="M3 11l9-8 9 8M5 10v10h14V10"/>',
+    drhp: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 13h8M8 17h8"/>',
+    review: '<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>',
+    diligence: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-5-5"/>',
+    projects: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+    vault: '<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10h14V9M10 13h4"/>',
+    audit: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    keyreview: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 7l3 3"/>',
+    deps: '<circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="9" r="2"/><path d="M6 8v8M6 12c0-3 12 0 12-1"/>',
+    deal: '<path d="M4 20V8l8-5 8 5v12M9 20v-6h6v6"/>'
+  };
+  function sideIcon(k) { return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + SIDE_ICON[k] + '</svg>'; }
+  function menuItem(act, icon, label, extra) {
+    return '<button class="mi" role="menuitem" data-act="' + act + '"' + (extra || '') + '>' +
+      '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[icon] + '</svg>' +
+      '<span>' + esc(label) + '</span></button>';
+  }
+  function accountMenu() {
+    var hid = app.hdr === 'hidden', fs = fullscreenOn(), dk = app.theme === 'dark', sh = app.side === 'rail';
+    return '<div class="pop" role="menu">' +
+      (external() ? '' : menuItem('nav', 'gear', 'Settings', ' data-view="settings"')) +
+      menuItem('theme-toggle', dk ? 'sun' : 'moon', dk ? 'Switch to light mode' : 'Switch to dark mode') +
+      menuItem('fullscreen', fs ? 'leave' : 'enter', fs ? 'Exit full screen' : 'Full screen') +
+      menuItem('hdr-toggle', hid ? 'down' : 'up', hid ? 'Show header' : 'Hide header') +
+      menuItem('side-toggle', 'menu', sh ? 'Expand the sidebar' : 'Collapse the sidebar') +
+      menuItem('signout', 'out', 'Sign out') + '</div>';
+  }
+  function dealOptions() {
+    var opts = '';
+    [['Positive case: real figures', 'positive'], ['Negative case: synthetic', 'negative'], ['Neutral case: synthetic', 'neutral'], ['Real filings', 'real']].forEach(function (g) {
+      var list = visibleDeals().filter(function (x) { return x.kind === g[1]; });
+      if (!list.length) return;
+      opts += '<optgroup label="' + esc(g[0]) + '">' + list.map(function (x) {
+        return '<option value="' + esc(x.id) + '"' + (x.id === app.deal ? ' selected' : '') + '>' + esc(x.name) + '</option>';
+      }).join('') + '</optgroup>';
+    });
+    return opts;
+  }
+  function sideNav() {
+    var allow = D.allowedViews(app.role), hasDeal = !!app.deal, ext = external(), s = hasDeal ? S() : null, rail = app.side === 'rail';
+    var badge = s ? { review: M.openFlags(s, app.deal).matches, diligence: M.openDiligence(s, app.deal) } : {};
+    var groups = SIDE_GROUPS.map(function (g) {
+      var items = g[1].filter(function (it) {
+        if (it[2] && !can(it[2])) return false;
+        if (allow && allow.indexOf(it[0]) < 0) return false;
+        if (ext && (it[0] === 'keyreview' || it[0] === 'deps')) return false;
+        if (!hasDeal && it[0] !== 'keyreview') return false;
+        return true;
+      });
+      if (!items.length) return '';
+      return '<div class="sg">' + (rail ? '' : '<div class="sgl">' + esc(g[0]) + '</div>') + items.map(function (it) {
+        var cur = app.view === it[0], n = badge[it[0]];
+        var b = n ? ' <span class="badge" aria-label="' + n + ' open">' + n + '</span>' : '';
+        return '<button class="sbtn' + (rail ? ' rail' : '') + (cur ? ' cur' : '') + '" data-act="nav" data-view="' + it[0] + '"' + (cur ? ' aria-current="page"' : '') +
+          (rail ? ' title="' + esc(it[1]) + '" aria-label="' + esc(it[1]) + (n ? ', ' + n + ' open' : '') + '">' + sideIcon(it[0]) + (n ? '<span class="dotb" aria-hidden="true"></span>' : '') : '>' + esc(it[1]) + b) + '</button>';
+      }).join('') + '</div>';
+    }).join('');
+    var tog = '<button class="sidetog" data-act="side-toggle" aria-expanded="' + !rail + '" aria-label="' + (rail ? 'Expand the sidebar' : 'Collapse the sidebar') + '" title="' + (rail ? 'Expand the sidebar' : 'Collapse the sidebar') + '">' + (rail ? '›' : '‹') + '</button>';
+    var d = deal();
+    return '<nav class="side' + (rail ? ' is-rail' : '') + '" aria-label="Main navigation"><div class="brand">' + (rail ? '' : '<span class="pname">Readiness</span>') + tog + '</div>' +
+      (hasDeal ? (rail ? '<div class="sg"><button class="sbtn rail" data-act="side-toggle" title="Active deal: ' + esc(d ? d.name : '') + '" aria-label="Active deal: ' + esc(d ? d.name : '') + '. Expand the sidebar to change it.">' + sideIcon('deal') + '</button></div>'
+        : '<div class="sg"><label class="sgl" for="dealSel">Active deal</label><select id="dealSel" data-act="deal" title="Codename only, identity restricted (Chinese wall)">' + dealOptions() + '</select></div>') : '') + groups + '</nav>';
+  }
+  function topBar() {
+    var d = deal(), s = d ? S() : null;
+    var stage = s ? G.STAGES[s.stageClosed ? 3 : 2] : '';
+    var roles = app.people.map(function (p) { return '<option value="' + p.id + '"' + (p.id === app.person ? ' selected' : '') + '>' + esc(p.name + ' (' + D.ROLE_LABEL[p.role] + ')') + '</option>'; }).join('');
+    return '<header class="bar"><div class="ctl"><label for="personSel">Signed in as</label><select id="personSel" data-act="person">' + roles + '</select></div>' +
+      '<div class="actions">' + (external() ? '' : '<button class="hb" data-act="ask-toggle">Ask</button>') +
+      '<button class="vb" data-act="help-toggle" aria-label="Help" title="Help (?)" aria-pressed="' + !!app.help + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON.help + '</svg></button>' +
+      '<details class="acct"><summary class="vb" aria-label="Account and view menu" title="Account and view menu"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON.user + '</svg></summary>' +
+      accountMenu() + '</details></div>' +
+      '<div class="crumbs">' + (d ? esc(stage) + ' › ' : '') + '<b>' + esc(VIEW_NAME[app.view] || '') + '</b>' +
+      (d && s && s.synthetic ? ' <span class="chip warn synth" title="' + esc(d.summary + ' No filing is behind these figures.') + '">Synthetic</span>' : '') + '</div></header>';
+  }
+  function header() { return sideNav() + topBar(); }
+  function simpleHeader() { return sideNav() + topBar(); }
+
+  function helpPanel() {
+    var h = SCREEN_HELP[app.view] || SCREEN_HELP.home, keys = Object.keys(ICON_HELP);
+    return '<aside class="drawer helpd" role="dialog" aria-modal="false" aria-label="Help"><div class="dh"><b>Help</b><button class="btn" data-act="help-toggle">Close</button></div><div class="db">' +
+      '<h3>This screen: ' + esc(VIEW_NAME[app.view] || '') + '</h3>' +
+      '<p><b>What it is for.</b> ' + esc(h.purpose) + '</p><p><b>What to do next.</b> ' + esc(h.next) + '</p><p><b>Who can act.</b> ' + esc(h.who) + '</p>' +
+      '<h3>Icons</h3><table><tr><th scope="col">Icon</th><th scope="col">Name</th><th scope="col">What it does</th></tr>' +
+      keys.map(function (k) {
+        return '<tr><td><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[k] + '</svg></td>' +
+          '<td>' + esc(ICON_HELP[k].name) + '</td><td>' + esc(ICON_HELP[k].what) + ' <span class="sub">' + esc(ICON_HELP[k].who) + '</span></td></tr>';
+      }).join('') + '</table>' +
+      '<h3>Keys</h3><p class="sub"><b>?</b> opens this help. <b>Esc</b> closes a dialog or panel. Every control can be reached with Tab.</p></div></aside>';
+  }
+
+  function guideCtx() {
+    return { deal: app.deal, states: app.states, state: app.deal ? S() : null, visited: app.visited || {} };
+  }
+  // One line by default (step, title, Go there); the full card with previous, next and the dots opens on request.
+  function stepsCarousel() {
+    if (!window.Guide || !app.role) return '';
+    var p = Guide.progress(app.role, guideCtx());
+    if (!p.total) return '';
+    var g = app.guide || {}, open = g.open === true;
+    var i = Guide.clamp(g.i === undefined || g.i === null ? Guide.start(p) : g.i, p.total), st = p.steps[i];
+    var dealNote = st.deal && st.deal !== app.deal ? ' <span class="chip plain">on ' + esc(dealNameOf(st.deal)) + '</span>' : '';
+    var line = '<span class="sub">Your steps, ' + p.doneCount + ' of ' + p.total + ' done.</span> <b>Step ' + (i + 1) + ': ' + esc(st.title) + '</b>' +
+      (st.done ? ' <span class="chip ok">Done</span>' : '') + dealNote;
+    return '<section class="steps-car' + (open ? ' open' : '') + '" aria-label="Your steps"><div class="spread"><div aria-live="polite">' + line + '</div>' +
+      '<div class="row"><button class="btn p" data-act="guide-go" data-i="' + i + '">Go there</button>' +
+      '<button class="btn" data-act="guide-toggle" aria-expanded="' + open + '">' + (open ? 'Hide steps' : 'All steps') + '</button></div></div>' +
+      (open ? '<div class="sc-card"><p>' + esc(st.body) + '</p>' +
+        '<div class="row"><button class="btn" data-act="guide-prev"' + (i === 0 ? ' disabled' : '') + ' aria-label="Previous step">‹ Previous</button>' +
+        '<button class="btn" data-act="guide-next"' + (i === p.total - 1 ? ' disabled' : '') + ' aria-label="Next step">Next ›</button>' +
+        '<span class="dots" role="group" aria-label="Steps">' + p.steps.map(function (x, n) {
+          return '<button class="dot' + (n === i ? ' cur' : '') + (x.done ? ' done' : '') + '" data-act="guide-jump" data-i="' + n + '" aria-label="Step ' + (n + 1) + ': ' + esc(x.title) + (x.done ? ' (done)' : '') + '"></button>';
+        }).join('') + '</span></div></div>' : '') + '</section>';
+  }
+  function dealNameOf(id) { var d = D.DEALS.filter(function (x) { return x.id === id; })[0]; return d ? d.name : id; }
+  function whoLine(n) {
+    if (!n) return '';
+    return '<p class="sub who">Actions your role (' + esc(D.ROLE_LABEL[app.role]) + ') cannot take are hidden. Who can do this: the ECM Head approves, records judgements, decides materiality and assigns agents; the BRLM reviewer confirms facts and runs reviews and checks; the firm admin manages people and house rules.</p>';
+  }
+
+
+  function can(a) { return D.can(app.role, a); }
+  function need(a, why) {
+    if (can(a)) return true;
+    app.flash = 'Your role (' + D.ROLE_LABEL[app.role] + ') cannot do this. ' + (why || 'Switch role in the bar above.');
+    return false;
+  }
+  function chipFor(o) {
+    var cls = o === O.COMPLIES ? 'ok' : o === O.NOT_COMPLY ? 'bad' : o === O.INFO_REQUIRED ? 'warn' : o === O.REFERRED ? '' : 'plain';
+    return '<span class="chip ' + cls + '">' + esc(o) + '</span>';
+  }
+  function download(name, text, mime) {
+    var b = new Blob([text], { type: mime || 'text/plain' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  window.logoFail = function (img) { var sp = document.createElement('span'); sp.className = 'logoslot'; sp.textContent = 'Firm logo'; img.replaceWith(sp); };
+
+  /* ------------------------------------------------------------ shell */
+  function stepBar() {
+    return '<ol class="steps">' + G.stepStates(S()).map(function (st) {
+      var cls = 'step ' + (st.status === 'done' ? 'done' : st.status === 'current' ? 'current' : '') + (st.attention ? ' attn' : '');
+      var label = '<b>' + (st.status === 'done' ? 'Done' : st.status === 'current' ? 'Now' : 'Later') + '</b>' + esc(st.label);
+      if (!st.view) return '<li><div class="' + cls + '">' + label + '</div></li>';
+      return '<li><button class="' + cls + '" data-act="nav" data-view="' + st.view + '">' + label + '</button></li>';
+    }).join('') + '</ol>';
+  }
+
+  var NEED = { confirm_fact: 'confirm_fact', confirm_assumption: 'change_price_band', add_document: 'add_documents', chase_issuer: 'add_documents',
+    house_rule: 'assess_house_rule', judgement: 'record_judgement', generate_report: 'generate_report', approve_report: 'approve_report' };
+  var BTN = { confirm_fact: 'Review this fact', confirm_assumption: 'Open the price band', add_document: 'Open documents', chase_issuer: 'Open the lock-in item',
+    house_rule: 'Open the house rule', judgement: 'Record a judgement', generate_report: 'Open the report', approve_report: 'Open the report', advance: 'Close this stage', escalate: 'Open the results' };
+
+  function nextCard() {
+    var s = S();
+    if (s.stageClosed) {
+      return '<section class="next"><div><span class="eyebrow">Stage closed</span><h2>Structure decisions is closed</h2><p>The next stage is Agreements and approvals. It is not part of this demonstration.</p></div></section>';
+    }
+    var a = G.nextAction(s), q = G.queue(s), left = q.length;
+    var need = NEED[a.kind];
+    var blocked = need && !can(need);
+    var role = need === 'approve_report' || need === 'record_judgement' ? 'lead' : 'analyst';
+    var btn = '<button class="btn p" data-act="next-go">' + esc(BTN[a.kind] || 'Go') + '</button>';
+    if (blocked) btn += ' <button class="btn" data-act="become" data-role="' + role + '">Switch to ' + esc(D.ROLE_LABEL[role]) + '</button>';
+    return '<section class="next" aria-label="Next step"><div><span class="eyebrow">Next step</span><h2>' + esc(a.title) + (a.count > 1 ? ' <span class="chip plain">' + (a.count - 1) + ' more facts after this</span>' : '') + '</h2>' +
+      '<p>' + esc(a.why) + '</p><p class="sub">Owner: ' + esc(a.who) + (a.unlocks && a.unlocks.length ? ' · Unlocks: ' + esc(a.unlocks.join(', ')) : '') + '</p>' +
+      (blocked ? '<p class="sub">Your current role cannot do this.</p>' : '') + '</div>' +
+      '<div>' + btn + '<details><summary>Why this step?</summary><p>' + esc(a.rule) + '</p><p>' + left + ' item(s) in the queue.</p></details></div></section>';
+  }
+
+  function shell(inner, bare) {
+    var s = S(), d = deal();
+    var hidden = (inner.match(/ hidden disabled/g) || []).length;
+    return header() + '<main class="wrap" id="main" tabindex="-1">' + (app.flash ? '<div class="flash" role="status">' + esc(app.flash) + '</div>' : '') +
+      stepsCarousel() + (bare ? '' : stepBar() + nextCard()) + inner + whoLine(hidden) + '</main>' + (app.ask ? drawer() : '') + (app.help ? helpPanel() : '') + modalHtml();
+  }
+
+  /* ------------------------------------------------------------ views */
+  VIEW['splash'] = function () {
+    return utilButtons(false) + '<div class="center splash"><div>' +
+      '<h1>Readiness</h1><p>Initial public offer checks and deal journey for BRLM teams</p>' +
+      '<div class="loadbar"><i></i></div><p>Opening your deals</p>' +
+      '<button class="btn" data-act="start">Continue</button></div></div>';
+  };
+
+  /* ---- dependencies: the plan's inferred links, accepted or rejected by the ECM Head ---- */
+  VIEW['deps'] = function () {
+    var s = S(), deps = depsOf(s), f = app.depFilter;
+    var byId = {}; D.GANGES.tasks.forEach(function (t) { byId[t.id] = t; });
+    var counts = { proposed: 0, accepted: 0, rejected: 0 };
+    deps.forEach(function (d) { counts[d.review_status]++; });
+    var rows = deps.filter(function (d) { return !f || d.review_status === f; });
+    var shown = rows.slice(0, app.depShow);
+    var can = D.can(app.role, 'review_dependency');
+    var lab = function (id) { var t = byId[id]; return '#' + id + ' ' + esc(t ? t.activity.slice(0, 90) : ''); };
+    var inner = '<div class="card"><div class="spread"><h1>Task dependencies</h1><span class="chip plain">' + deps.length + ' inferred links</span></div>' +
+      '<p class="sub">Links between plan tasks were inferred from their wording. Until the ECM Head accepts a link, the tool does not claim that one task holds up another.' + (can ? '' : ' Only the ECM Head accepts or rejects links.') + '</p>' +
+      '<p><span class="chip warn">' + counts.proposed + ' unreviewed</span> <span class="chip ok">' + counts.accepted + ' accepted</span> <span class="chip bad">' + counts.rejected + ' rejected</span></p>' +
+      '<label class="field" style="max-width:240px"><span>Show</span><select id="depFilter" class="f" data-act="dep-filter"><option value="">All links</option>' +
+      ['proposed', 'accepted', 'rejected'].map(function (k) { return '<option value="' + k + '"' + (f === k ? ' selected' : '') + '>' + k + '</option>'; }).join('') + '</select></label></div>' +
+      shown.map(function (d) {
+        var cls = d.review_status === 'accepted' ? 'ok' : d.review_status === 'rejected' ? 'bad' : 'warn';
+        var key = ' data-t="' + d.task_id + '" data-d="' + d.depends_on + '"';
+        return '<div class="card"><div class="spread"><h3>' + lab(d.task_id) + '</h3><span class="chip ' + cls + '">' + esc(d.review_status) + '</span></div>' +
+          '<p class="sub">depends on ' + lab(d.depends_on) + '</p><div class="row">' +
+          '<button class="btn p" data-act="dep-accept"' + key + (can ? '' : ' disabled') + '>Accept</button>' +
+          '<button class="btn" data-act="dep-reject"' + key + (can ? '' : ' disabled') + '>Reject</button>' +
+          '<button class="btn" data-act="dep-reset"' + key + (can ? '' : ' disabled') + '>Back to unreviewed</button></div></div>';
+      }).join('') + (rows.length > shown.length ? '<p><button class="btn" data-act="dep-more">Show 20 more</button></p>' : '');
+    return shell(inner);
+  };
+
+  /* ---- answer key: the extracted fields of the 8 filings, confirmed or disputed by a person ---- */
+  VIEW['keyreview'] = function () {
+    var kr = app.keyreview, st = D.keyReviewStats(kr);
+    var slugs = []; kr.items.forEach(function (i) { if (slugs.indexOf(i.slug) < 0) slugs.push(i.slug); });
+    var names = {}; D.DEALS.forEach(function (d) { names[d.id] = d.name; });
+    var rows = kr.items.filter(function (i) { return i.slug === app.krFiling && (!app.krStatus || i.status === app.krStatus); });
+    var shown = rows.slice(0, app.krShow);
+    var can = D.can(app.role, 'review_key');
+    var card = function (i) {
+      var cls = i.status === 'confirmed' ? 'ok' : i.status === 'disputed' ? 'bad' : 'plain';
+      var key = ' data-s="' + esc(i.slug) + '" data-f="' + esc(i.field) + '"';
+      var nid = 'krn_' + i.slug + '_' + i.field.replace(/[^a-z0-9]/gi, '_');
+      return '<div class="card"><div class="spread"><h3>' + esc(i.field) + '</h3><span class="chip ' + cls + '">' + esc(i.status) + '</span></div>' +
+        (i.kind === 'stated'
+          ? '<div class="big" style="font-size:20px">' + esc(i.value) + '</div><p class="sub">Filing page ' + esc(i.page) + '</p><div class="quote">' + esc(i.quote) + '</div>'
+          : '<p><span class="chip warn">Data not available</span></p><p class="sub">The extraction found no value. Confirm that the filing really does not give it.</p>') +
+        '<label class="field"><span>Note (needed to dispute)</span><input id="' + nid + '" value="' + esc(i.note) + '"' + (can ? '' : ' disabled') + '></label>' +
+        '<div class="row" style="margin-top:8px"><button class="btn p" data-act="kr-confirm"' + key + ' data-n="' + nid + '"' + (can ? '' : ' disabled') + '>' + (i.kind === 'stated' ? 'Matches the filing' : 'Confirmed not available in the filing') + '</button>' +
+        '<button class="btn" data-act="kr-dispute"' + key + ' data-n="' + nid + '"' + (can ? '' : ' disabled') + '>Does not match</button>' +
+        '<button class="btn" data-act="kr-reset"' + key + ' data-n="' + nid + '"' + (can ? '' : ' disabled') + '>Back to pending</button></div>' +
+        (i.by ? '<p class="sub">Decided by ' + esc(i.by) + '</p>' : '') + '</div>';
+    };
+    return simpleHeader() + '<main class="wrap" id="main" tabindex="-1">' + (app.flash ? '<div class="flash" role="status">' + esc(app.flash) + '</div>' : '') +
+      '<div class="card"><div class="spread"><h1>Answer key review</h1><span class="chip plain">' + st.total + ' fields</span></div>' +
+      '<p class="sub">Each value below was read from a filing by a model and checked by machine. A person confirms it against the page, or disputes it. This is the review the extraction accuracy figures depend on.' + (can ? '' : ' Only BRLM reviewers and ECM Heads decide fields.') + '</p>' +
+      '<p><span class="chip ok">' + st.confirmed + ' confirmed</span> <span class="chip bad">' + st.disputed + ' disputed</span> <span class="chip warn">' + st.pending + ' pending</span></p>' +
+      '<div class="row"><label class="field" style="margin:0"><span>Filing</span><select id="krFiling" class="f" data-act="kr-filing">' +
+      slugs.map(function (n) { return '<option value="' + esc(n) + '"' + (app.krFiling === n ? ' selected' : '') + '>' + esc(names[n] || n) + '</option>'; }).join('') + '</select></label>' +
+      '<label class="field" style="margin:0"><span>Status</span><select id="krStatus" class="f" data-act="kr-status"><option value="">All</option><option value="pending"' + (app.krStatus === 'pending' ? ' selected' : '') + '>Pending</option><option value="confirmed"' + (app.krStatus === 'confirmed' ? ' selected' : '') + '>Confirmed</option><option value="disputed"' + (app.krStatus === 'disputed' ? ' selected' : '') + '>Disputed</option></select></label>' +
+      '<button class="btn" data-act="kr-download">Download decisions (CSV)</button></div></div>' +
+      '<h2 style="margin:14px 0 6px">' + rows.length + ' field(s)</h2>' + shown.map(card).join('') +
+      (rows.length > shown.length ? '<p><button class="btn" data-act="kr-more">Show 12 more (' + shown.length + ' of ' + rows.length + ' shown)</button></p>' : '') +
+      '</main>';
+  };
+
+  VIEW['nodeal'] = function () {
+    var roles = app.people.map(function (p) { return '<option value="' + p.id + '"' + (p.id === app.person ? ' selected' : '') + '>' + esc(p.name + ' (' + D.ROLE_LABEL[p.role] + ')') + '</option>'; }).join('');
+    return simpleHeader() +
+      '<main class="wrap" id="main" tabindex="-1"><div class="card"><h1>You are not on any deal team</h1>' +
+      '<p class="sub">Deals are shown only to the people on their team. The firm admin adds people to a deal team in Settings.</p>' +
+      '<p>' + (person() ? 'Signed in as ' + esc(person().name) + ' (' + esc(D.ROLE_LABEL[person().role]) + ').' : '') + '</p></div></main>';
+  };
+  VIEW['login'] = function () {
+    return utilButtons(false) + '<div class="center"><div class="card login"><h1>Sign in</h1><p class="sub">Use your bank account. Deals are shown by codename.</p>' +
+      '<p><button class="btn p" data-act="signin" style="width:100%">Continue with bank SSO</button></p>' +
+      '<label class="field"><span>Or work email</span><input id="email" placeholder="name@bank.example"></label>' +
+      '<p class="sub" style="margin-top:16px">New here? Ask your firm admin to add you to a deal team.</p></div></div>';
+  };
+
+  function journey() {
+    var cur = S().stageClosed ? 3 : 2;
+    return '<div class="path" role="list">' + G.STAGES.map(function (n, i) {
+      var c = i < cur ? 'd' : i === cur ? 'n' : '';
+      return '<div class="node ' + c + '" role="listitem"><b>' + (i + 1) + (i === cur ? ' · You are here' : '') + '</b>' + esc(n) + '</div>';
+    }).join('') + '</div>' +
+      '<details style="margin-top:8px"><summary class="sub">After filing: six stages, not yet planned</summary>' +
+      '<div class="path" role="list" aria-label="Stages after filing">' + G.POST_FILING_STAGES.map(function (x, n) {
+        return '<div class="node" role="listitem" title="' + esc(x.note) + '"><b>' + (G.STAGES.length + n + 1) + '</b>' + esc(x.name) + '<div class="sub">Data not available</div></div>';
+      }).join('') + '</div></details>';
+  }
+
+  function coverageBox() {
+    var s = S(), d = deal();
+    var fil = window.Filings.all().filter(function (r) { return r.slug === d.id; })[0];
+    if (!fil) return '';
+    var c = window.Filings.coverage(fil);
+    return '<div class="card"><div class="spread"><h3>Data coverage from the filing</h3><span class="chip ' + (c.missing.length ? 'warn' : 'ok') + '">' + c.available + ' of ' + c.total + ' inputs available</span></div>' +
+      (c.missing.length ? '<p class="sub">Data not available in this filing: ' + esc(c.missing.join('; ')) + '.</p>' : '<p class="sub">Every input the framework needs is present.</p>') +
+      '<p class="sub">Route stated by the issuer: ICDR Reg ' + esc((s.route && s.route.value) || 'not stated') + '. Source: ' + esc(fil.pdf) + '.</p></div>';
+  }
+
+  VIEW['home'] = function () {
+    var s = S(), d = deal();
+    var checks = G.evaluate(s);
+    var counts = {}; checks.forEach(function (c) { counts[c.outcome] = (counts[c.outcome] || 0) + 1; });
+    var inner = '<header class="pagehead"><div class="spread"><h1>' + esc(d.name) + '</h1><span class="chip">' + esc(KIND_LABEL[d.kind]) + '</span></div><p class="sub">' + esc(d.summary) + '</p></header>' +
+      kpis() + nextCard() +
+      '<section class="card"><h2>Deal journey</h2>' + journey() + '</section>' +
+      dashboardStatus(s, '<div class="card"><div class="spread"><h3>Check results so far</h3><button class="btn lnk" data-act="nav" data-view="results" aria-label="Open the results">Open</button></div>' +
+        Object.keys(counts).map(function (k) { return '<p style="margin:4px 0">' + chipFor(k) + ' ' + counts[k] + '</p>'; }).join('') + '</div>') +
+      coverageBox() +
+      '<div class="card" style="margin-top:24px"><div class="spread"><h3>Stage tasks (from the Ganges plan, status illustrative)</h3><span class="sub">' + (app.allTasks ? 'All ' + s.tasks.length + ' tasks' : 'Overdue and due this week first') + '</span></div><div class="row"><button class="btn" data-act="tasks-toggle">' + (app.allTasks ? 'Show overdue and due this week only' : 'Show all ' + s.tasks.length + ' tasks') + '</button></div><div class="tblw"><table><tr><th scope="col">No.</th><th scope="col">Task</th><th scope="col">Owner</th><th scope="col">Due</th><th scope="col">Status</th><th scope="col">Dependencies</th></tr>' +
+      s.tasks.filter(function (t) { var z = D.taskState(t); return app.allTasks || z === 'Overdue' || z === 'Due this week'; }).slice(0, app.allTasks ? 999 : 15).map(function (t) {
+        var st = D.taskState(t), due = D.dueDate(t.offset_days), dv = D.dependencyView(depsOf(s), t.no);
+        var stc = st === 'Overdue' ? 'bad' : st === 'Due this week' ? 'warn' : st === 'Done' ? 'ok' : 'plain';
+        return '<tr><td>' + t.no + '</td><td>' + esc(t.text) + '</td><td>' + esc(t.owner) + '</td><td>' + esc(due || 'n/a') + '<br><span class="chip ' + stc + '">' + esc(st) + '</span></td>' +
+          '<td><button class="btn" data-act="task" data-no="' + t.no + '">' + esc(t.status) + '</button></td>' +
+          '<td>' + (dv.blockers.length ? 'Waits on #' + dv.blockers.join(', #') : '') + (dv.possible.length ? '<span class="sub">Possible: #' + dv.possible.join(', #') + ' (unreviewed)</span>' : '') + (!dv.blockers.length && !dv.possible.length ? '<span class="sub">none inferred</span>' : '') + '</td></tr>';
+      }).join('') + '</table></div><p><button class="btn" data-act="nav" data-view="deps">Review the inferred dependencies</button></p></div>' +
+      (can('view_portfolio') ? '' : '<div class="card" style="margin-top:24px"><h3>Other deals you are on</h3><div class="grid">' + visibleDeals().filter(function (x) { return x.id !== app.deal; }).map(function (x) {
+        return '<div><b>' + esc(x.name) + '</b> <span class="chip plain">' + esc(KIND_LABEL[x.kind]) + '</span><p class="sub">' + esc(x.summary) + '</p><button class="btn" data-act="deal-open" data-id="' + esc(x.id) + '">Open this deal</button></div>';
+      }).join('') + '</div></div>') + flowRef();
+    return shell(inner, true);
+  };
+
+  var DOCS = [['offer', 'Offer document (draft offer document)'], ['financials', 'Restated financial statements'], ['shareholding', 'Shareholding pattern'], ['auditor', 'Auditor certificates']];
+  VIEW['docs'] = function () {
+    var s = S();
+    var chip = function (st) { return st === 'ready' ? '<span class="chip ok">Ready</span>' : st === 'missing' ? '<span class="chip warn">Missing</span>' : '<span class="chip warn">Low confidence scan</span>'; };
+    var inner = '<div class="card"><h1>Documents uploaded</h1><p class="sub">What the checks need, and what was found. Documents are added in the Evidence vault, the deal\'s one folder.</p>' +
+      '<p style="margin-top:16px"><button class="btn p" data-act="nav" data-view="vault">Open the Evidence vault</button></p></div>' +
+      (s.intake ? '<div class="card"><div class="spread"><h3>Found in "' + esc(s.intake.label) + '"</h3><span class="chip ok">' + s.intake.filesRead + ' files read, ' + s.intake.skipped + ' skipped as not relevant (demo)</span></div>' +
+        ((s.intake.scans || []).length ? '<h3 style="margin-top:16px">Confirm queue: scanned files</h3><p class="sub">OCR output is never treated as clean text. A person confirms what each file says before any value from it is used.</p>' +
+          s.intake.scans.map(function (x, i) {
+            return '<div class="todo"><span class="num">' + (i + 1) + '</span><div><b>' + esc(x.file) + '</b><div class="sub">' + esc(x.reason) + '</div></div>' +
+              (x.confirmed ? '<span class="chip ok">Confirmed</span>' : '<button class="btn" data-act="confirm-scan" data-file="' + esc(x.file) + '"' + (can('add_documents') ? '' : ' hidden disabled') + '>Confirm</button>') + '</div>';
+          }).join('') : '') + '</div>' : '') +
+      '<div class="card"><h3>What the checks need</h3><div class="tblw"><table><tr><th scope="col">Document</th><th scope="col">Status</th><th scope="col">Needed for</th></tr>' +
+      DOCS.map(function (d) {
+        var needed = d[0] === 'shareholding' ? 'Reg 14, minimum promoters’ contribution' : d[0] === 'offer' ? 'Everything, including the price band' : d[0] === 'financials' ? 'Reg 6(1)(a) to (c)' : 'Supporting certificates';
+        return '<tr><td>' + esc(d[1]) + '</td><td>' + chip(s.docs[d[0]]) + '</td><td>' + esc(needed) + '</td></tr>';
+      }).join('') + '</table></div>' +
+      (s.docs.shareholding !== 'ready' ? '<p class="sub" style="margin-top:8px">The shareholding pattern is missing. Add it in the Evidence vault.</p>' : '') + '</div>';
+    return shell(inner);
+  };
+
+  function factRow(f) {
+    var req = G.isRequired(S(), f);
+    var st = f.status === 'confirmed' ? '<span class="chip ok">Confirmed</span>' : !req ? '<span class="chip plain">Not required</span>' : f.status === 'flagged' ? '<span class="chip bad">Flagged</span>' : f.status === 'unavailable' ? '<span class="chip warn">Data not available</span>' : '<span class="chip plain">To confirm</span>';
+    return '<button class="fact ' + (app.sel === f.id ? 'sel' : '') + '" data-act="fact-select" data-id="' + esc(f.id) + '"><span>' + esc(f.label) + '</span>' + st + '</button>';
+  }
+  VIEW['facts'] = function () {
+    var s = S();
+    var required = s.facts.filter(function (x) { return G.isRequired(s, x); });
+    var f = G.byId(s, app.sel) || required.filter(function (x) { return x.status !== 'confirmed'; })[0] || s.facts[0];
+    app.sel = f.id;
+    var done = required.filter(function (x) { return x.status === 'confirmed'; }).length;
+    var reqNote = G.isRequired(s, f) ? '' : '<p class="chip plain">Not required</p><p class="sub">The 50% monetary assets limit in Reg 6(1)(a) does not apply when the offer is made entirely through an offer for sale. You may still confirm it.</p>';
+    var detail;
+    var gate = can('confirm_fact') ? '' : ' hidden disabled';
+    if (f.metric === 'attest') {
+      detail = '<h3>' + esc(f.label) + '</h3><p>' + esc(f.statement) + '</p>' +
+        (f.status === 'unavailable' ? '<p class="chip warn">Data not available in this filing</p><p class="sub">You can attest this manually after checking the restated profit and loss.</p>' :
+          '<p class="sub">The filing states: ' + (f.value === true ? 'positive in all three years' : 'not positive in every year') + '.</p><div class="quote">' + esc(f.quote || '') + '</div><p class="cite">Filing page ' + esc(f.page) + '</p>') +
+        '<div class="row" style="margin-top:16px"><button class="btn p" data-act="fact-confirm" data-id="' + esc(f.id) + '"' + gate + '>' + (f.status === 'unavailable' ? 'Attest and confirm' : 'Yes, confirm') + '</button>' +
+        '<button class="btn" data-act="fact-flag" data-id="' + esc(f.id) + '"' + gate + '>Flag for a colleague</button></div>';
+    } else {
+      var srcnote = f.convertedFrom ? 'Printed as ' + fmt(f.convertedFrom.value) + ' ' + f.convertedFrom.unit.replace('Rs', '₹') + ', shown in ₹ crore.' : '';
+      detail = '<h3>' + esc(f.label) + '</h3>' +
+        (f.value === null ? '<div class="big">Data not available</div><p class="sub">This filing does not give the figure. Enter it from the document if you have it.</p>' :
+          '<div class="big">₹' + esc(fmt(f.value)) + ' crore</div><p class="sub">' + esc(srcnote) + '</p>' +
+          (f.derived ? '<p class="chip warn">Computed, not printed</p><p class="sub">' + esc(f.derived) + '</p>' : '')) +
+        (f.quote ? '<p class="sub" style="margin-top:16px">What the filing says' + (f.page ? ' (page ' + esc(f.page) + ')' : '') + ':</p><div class="quote">' + esc(f.quote) + '</div>' : '<p class="sub">No source text available for this value.</p>') +
+        '<label class="field"><span>Value in ₹ crore</span><input id="editVal" type="number" step="any" value="' + (f.value === null ? '' : esc(f.value)) + '"' + gate + '></label>' +
+        '<div class="row" style="margin-top:16px"><button class="btn p" data-act="fact-confirm" data-id="' + esc(f.id) + '"' + gate + '>' + (f.value === null ? 'Enter and confirm' : 'Confirm') + '</button>' +
+        '<button class="btn" data-act="fact-flag" data-id="' + esc(f.id) + '"' + gate + '>Flag for a colleague</button></div>';
+    }
+    detail = reqNote + detail;
+    var inner = '<div class="card"><div class="spread"><h1>Confirm facts</h1><span class="chip plain">' + done + ' of ' + required.length + ' required facts confirmed</span></div>' +
+      '<p class="sub">Check each number against the filing text, then confirm, edit or flag it. Checks only use confirmed numbers.</p></div>' +
+      '<div class="focus" style="margin-top:16px"><div>' + s.facts.map(factRow).join('') + '</div><div class="card">' + detail + '</div></div>';
+    return shell(inner);
+  };
+
+  function checkCard(c, s) {
+    var attn = c.outcome !== O.COMPLIES;
+    var body = '<p>' + esc(c.reason) + '</p><p class="cite">' + esc(c.cites.join(', ')) + '</p>';
+    var act = '';
+    if (c.id === 'r29') {
+      act = '<div class="row"><label class="field"><span>Floor price (₹)</span><input id="pbFloor" class="inline" type="number" step="any" value="' + (s.priceBand.floor === null ? '' : esc(s.priceBand.floor)) + '"></label>' +
+        '<label class="field"><span>Cap price (₹)</span><input id="pbCap" class="inline" type="number" step="any" value="' + (s.priceBand.cap === null ? '' : esc(s.priceBand.cap)) + '"></label>' +
+        '<button class="btn p" data-act="pb-confirm"' + (can('change_price_band') ? '' : ' hidden disabled') + '>Confirm price band</button></div>';
+    }
+    if (c.id === 'r16' && c.outcome === O.INFO_REQUIRED) act = '<button class="btn p" data-act="nav" data-view="vault"' + (can('add_documents') ? '' : ' hidden disabled') + '>Add the tranche table in the Evidence vault</button>';
+    if (c.id === 'r14' && c.outcome === O.INFO_REQUIRED) act = '<button class="btn p" data-act="nav" data-view="vault"' + (can('add_documents') ? '' : ' hidden disabled') + '>Add the shareholding pattern in the Evidence vault</button>';
+    if (c.house && c.outcome === O.INFO_REQUIRED) {
+      act = '<div class="row"><button class="btn p" data-act="house-yes" data-id="' + esc(c.id) + '"' + (can('assess_house_rule') ? '' : ' hidden disabled') + '>Rule is met</button>' +
+        '<button class="btn" data-act="house-no" data-id="' + esc(c.id) + '"' + (can('assess_house_rule') ? '' : ' hidden disabled') + '>Rule is not met</button></div>';
+    }
+    if (c.outcome === O.INFO_REQUIRED && c.needs.length && !c.house && c.id !== 'r29' && c.id !== 'r16' && c.id !== 'r14') {
+      act = '<button class="btn" data-act="nav" data-view="facts">Open the facts to confirm</button>';
+    }
+    if (c.outcome === O.REFERRED) {
+      var j = s.judgements[c.id];
+      if (j) act = '<p><span class="chip ' + (j.decision === 'escalate' ? 'bad' : 'ok') + '">' + (j.decision === 'escalate' ? 'Escalated' : 'Judgement recorded') + '</span> ' + esc(j.note) + '</p>';
+      else act = '<label class="field"><span>Note for the file</span><input id="jn_' + esc(c.id) + '" placeholder="Basis for the judgement"></label>' +
+        '<div class="row" style="margin-top:8px"><button class="btn p" data-act="judge-accept" data-id="' + esc(c.id) + '"' + (can('record_judgement') ? '' : ' hidden disabled') + '>Accept and record</button>' +
+        '<button class="btn" data-act="judge-escalate" data-id="' + esc(c.id) + '"' + (can('record_judgement') ? '' : ' hidden disabled') + '>Escalate</button></div>' +
+        (can('record_judgement') ? '' : '<p class="sub">Only the ECM Head records a judgement.</p>');
+    }
+    var work = '<details><summary>Show working</summary><div class="tblw"><table><tr><th scope="col">Requirement</th><th scope="col">Threshold</th></tr>' +
+      Object.keys(c.thresholds).map(function (k) { return '<tr><td>' + esc(k) + '</td><td>' + esc(c.thresholds[k]) + '</td></tr>'; }).join('') +
+      '</table><table><tr><th scope="col">Input</th><th scope="col">Value</th></tr>' + Object.keys(c.inputs).map(function (k) { return '<tr><td>' + esc(k) + '</td><td>' + esc(c.inputs[k]) + '</td></tr>'; }).join('') + '</table>' +
+      (c.needs.length ? '<p class="sub">Still needed: ' + esc(c.needs.join('; ')) + '</p>' : '') + '</div></details>';
+    return '<div class="card ' + (attn ? 'attn' : '') + '" id="' + esc(c.id) + '"><div class="spread"><h3>' + esc(c.label || c.title) + '</h3>' + chipFor(c.outcome) + '</div>' + body + act + work + '</div>';
+  }
+  VIEW['results'] = function () {
+    var s = S();
+    var checks = G.evaluate(s);
+    var attn = checks.filter(function (c) { return c.outcome !== O.COMPLIES; });
+    var ok = checks.filter(function (c) { return c.outcome === O.COMPLIES; });
+    var inner = '<div class="card"><h1>Check results</h1><p class="sub">Chapter II of the ICDR Regulations, Regs 6(1)(a) to (c), 14, 16 and 29, plus any house rules. Reg 6(1)(d) and 6(2) are not modelled here.</p></div>' +
+      '<h2 style="margin:14px 0 6px">Needs attention (' + attn.length + ')</h2>' + (attn.length ? attn.map(function (c) { return checkCard(c, s); }).join('') : '<div class="card"><p>Nothing needs attention.</p></div>') +
+      '<h2 style="margin:14px 0 6px">Complies (' + ok.length + ')</h2>' + (ok.length ? ok.map(function (c) { return checkCard(c, s); }).join('') : '<div class="card"><p class="sub">No check complies yet.</p></div>');
+    return shell(inner);
+  };
+
+  VIEW['report'] = function () {
+    var s = S(), g = G.canGenerateReport(s);
+    var inner = '<div class="card"><h1>Review report</h1><p class="sub">The BRLM reviewer generates it and the ECM Head approves it. Nothing is sent anywhere.</p>';
+    if (!s.reportGenerated) {
+      inner += g.ok ? '<p><span class="chip ok">Ready to generate</span></p>' : '<p><span class="chip warn">Not ready</span> Waiting on: ' + esc(g.blockers.join('; ')) + '.</p>';
+      inner += '<p><button class="btn p" data-act="generate"' + (!can('generate_report') ? ' hidden disabled' : (g.ok ? '' : ' disabled')) + '>Generate the report</button></p>';
+      if (g.ok && !can('generate_report')) inner += '<p class="sub">Your role cannot generate the report. Switch to BRLM reviewer or ECM Head.</p>';
+    } else {
+      inner += '<p>' + (s.reportApprovedBy ? '<span class="chip ok">Approved by ' + esc(D.ROLE_LABEL[s.reportApprovedBy]) + '</span>' : '<span class="chip warn">Waiting for the ECM Head to approve</span>') + '</p>' +
+        '<pre class="report">' + esc(D.reportText(s)) + '</pre>' +
+        '<div class="row">' +
+        (!s.reportApprovedBy ? '<button class="btn p" data-act="approve"' + (can('approve_report') ? '' : ' hidden disabled') + '>Approve the report</button>' : '') +
+        menu('Export', ['<button class="mi" data-act="print-report"><span>Print or save as PDF</span></button>',
+          '<button class="mi" data-act="download-report-doc"><span>Download for Word</span></button>',
+          '<button class="mi" data-act="download-report"><span>Download as text</span></button>']) + '</div>' +
+        (!s.reportApprovedBy && !can('approve_report') ? '<p class="sub">Only the ECM Head approves. Switch role in the bar above.</p>' : '');
+      if (s.reportApprovedBy) {
+        var a = G.nextAction(s);
+        inner += '<p style="margin-top:16px">' + (a.kind === 'advance' ? '<button class="btn p" data-act="advance">Close the Structure decisions stage</button>' : '<span class="chip bad">Open points remain</span> ' + esc(a.why)) + '</p>';
+      }
+    }
+    return shell(inner + '</div>');
+  };
+
+  VIEW['audit'] = function () {
+    var s = S(), people = D.auditPeople(s), who = people.indexOf(app.auditWho) >= 0 ? app.auditWho : '';
+    app.auditWho = who;
+    var rows = s.audit.filter(function (a) { return !who || a.who === who; }).slice().reverse().map(function (a) { return '<tr><td class="cite">' + esc(a.t.replace('T', ' ').slice(0, 19)) + '</td><td>' + esc(a.who) + '</td><td>' + esc(a.text) + '</td></tr>'; }).join('');
+    var inner = '<div class="card"><div class="spread"><h1>Audit trail</h1><span class="row"><button class="btn" data-act="download-audit-doc"' + (can('export_audit') ? '' : ' hidden disabled') + '>Download for Word</button><button class="btn" data-act="download-audit"' + (can('export_audit') ? '' : ' hidden disabled') + '>Download as text</button></span></div>' +
+      (can('export_audit') ? '' : '<p class="sub">Only the ECM Head and the firm admin export the audit trail.</p>') +
+      '<label class="field"><span>Person</span><select class="f" id="audit_who" data-act="audit-who"><option value="">Everyone</option>' +
+      people.map(function (p) { return '<option' + (p === who ? ' selected' : '') + '>' + esc(p) + '</option>'; }).join('') + '</select></label>' +
+      (who ? '<p class="sub" style="margin-top:8px">Showing the actions of ' + esc(who) + '. The downloads follow this filter.</p>' : '') +
+      (s.audit.length ? '<div class="tblw"><table><tr><th scope="col">When</th><th scope="col">Who</th><th scope="col">Action</th></tr>' + rows + '</table></div>' : '<p class="sub">No actions recorded yet. Confirm a fact to see the first entry.</p>') + '</div>';
+    return shell(inner);
+  };
+
+  VIEW['settings'] = function () {
+    var s = S();
+    var tabs = [['users', 'Users and roles'], ['teams', 'Deal teams'], ['rules', 'House rules'], ['data', 'Data and hosting'], ['audit', 'Audit and export'], ['look', 'Appearance']];
+    var tb = '<div class="tabs" role="tablist">' + tabs.map(function (t) { return '<button class="tab ' + (app.tab === t[0] ? 'on' : '') + '" data-act="set-tab" data-tab="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div>';
+    var body = '';
+    if (app.tab === 'users') {
+      body = '<h2>Users and roles</h2><p class="sub">Permission is the role plus the deals a person belongs to.' + (can('manage_users') ? '' : ' Only the firm admin changes roles.') + '</p><div class="tblw"><table><tr><th scope="col">Person (example)</th><th scope="col">Role</th></tr>' +
+        app.people.map(function (u) {
+          return '<tr><td><label for="u_' + u.id + '">' + esc(u.name) + '</label></td><td><select id="u_' + u.id + '" class="f" data-act="user-role" data-id="' + u.id + '"' + (can('manage_users') ? '' : ' hidden disabled') + '>' +
+            Object.keys(D.ROLE_LABEL).map(function (r) { return '<option value="' + r + '"' + (u.role === r ? ' selected' : '') + '>' + esc(D.ROLE_LABEL[r]) + '</option>'; }).join('') + '</select></td></tr>';
+        }).join('') + '</table></div>';
+    } else if (app.tab === 'teams') {
+      body = '<h2>Deal teams</h2><p class="sub">People see only the deals they are on, so one team cannot see another\'s deal.' + (can('manage_users') ? ' Click a cell to add or remove a person.' : ' Only the firm admin changes teams.') + '</p>' +
+        '<div class="tblw"><table><tr><th scope="col">Deal</th>' + app.people.map(function (p) { return '<th scope="col">' + esc(p.name) + '<br><span class="sub">' + esc(D.ROLE_LABEL[p.role]) + '</span></th>'; }).join('') + '</tr>' +
+        D.DEALS.map(function (d) {
+          return '<tr><td>' + esc(d.name) + '</td>' + app.people.map(function (p) {
+            var on = p.deals.indexOf(d.id) >= 0;
+            return '<td><button class="btn ' + (on ? 'p' : '') + '" data-act="member" data-p="' + p.id + '" data-d="' + esc(d.id) + '"' + (can('manage_users') ? '' : ' hidden disabled') + ' aria-label="' + esc(p.name + ' on ' + d.name + ': ' + (on ? 'member' : 'not a member')) + '">' + (on ? 'In' : 'Out') + '</button></td>';
+          }).join('') + '</tr>';
+        }).join('') + '</table></div>';
+    } else if (app.tab === 'rules') {
+      body = '<h2>House rules</h2><p class="sub">The firm\'s own checks, shown next to the regulation checks and labelled "House rule".' + (can('edit_house_rules') ? '' : ' Only the firm admin adds them.') + '</p>' +
+        '<label class="field"><span>Applies to</span><select id="hrHead" class="f" data-ph-for="hrText,hrOwner">' + ['Board and governance', 'Capital structure', 'Objects of the offer', 'Financial statements'].map(function (h) {
+          return '<option' + phAttr('e.g. ' + PH_HEAD[h].split('|')[0] + '|e.g. ' + PH_SETTINGS_OWNER[h]) + '>' + esc(h) + '</option>'; }).join('') + '</select></label>' +
+        '<label class="field"><span>Rule</span><input id="hrText" placeholder="' + esc('e.g. ' + PH_HEAD['Board and governance'].split('|')[0]) + '"></label>' +
+        '<label class="field"><span>Owner</span><input id="hrOwner" placeholder="' + esc('e.g. ' + PH_SETTINGS_OWNER['Board and governance']) + '"></label>' +
+        '<p><button class="btn p" data-act="hr-add"' + (can('edit_house_rules') ? '' : ' hidden disabled') + '>Add the rule to this deal</button></p>' +
+        '<h3>On this deal</h3>' + (s.houseRules.length ? '<ul>' + s.houseRules.map(function (h) { return '<li>' + esc(h.head) + ': ' + esc(h.text) + ' <span class="cite">(' + esc(h.owner) + ')</span></li>'; }).join('') + '</ul>' : '<p class="sub">None yet.</p>');
+    } else if (app.tab === 'data') {
+      var opts = [['hosted', 'Hosted model under enterprise terms'], ['local', 'Local model inside the bank'], ['hybrid', 'Hybrid: pages routed locally, only relevant pages sent']];
+      body = '<h2>Data and hosting</h2><p class="sub">Where document reading would run in the real build. Nothing runs in this demonstration.</p>' +
+        '<div class="grid">' + opts.map(function (o) { return '<div class="card"><h3>' + o[1] + '</h3><button class="btn ' + (app.host === o[0] ? 'p' : '') + '" data-act="host" data-opt="' + o[0] + '">' + (app.host === o[0] ? 'Selected' : 'Select') + '</button></div>'; }).join('') + '</div>';
+    } else if (app.tab === 'audit') {
+      body = '<h2>Audit and export</h2><p class="sub">' + s.audit.length + ' action(s) on this deal.</p><div class="row"><button class="btn" data-act="nav" data-view="audit">Open the audit trail</button><button class="btn" data-act="download-audit"' + (can('export_audit') ? '' : ' hidden disabled') + '>Download as text</button></div>';
+    } else {
+      body = '<h2>Appearance</h2><p class="sub">The firm uploads its own logo and sets its brand colours.</p>' +
+        '<div class="row">' + Object.keys(BRANDS).map(function (k) { return '<button class="btn ' + (app.brand === k ? 'p' : '') + '" data-act="brand" data-brand="' + k + '"><span class="swatch" style="background:' + BRANDS[k][0] + '"></span>' + k + '</button>'; }).join('') + '</div>';
+    }
+    return shell('<div class="card"><h1>Settings</h1>' + tb + body + '</div>');
+  };
+
+  /* ------------------------------------------------------------ ask panel */
+  var SUGGEST = [['next', 'What should I do next?'], ['r16', 'Why is Reg 16 not checked yet?'], ['r6_1_c', 'What does Reg 6(1)(c) require?'], ['reg:14', 'What does Regulation 14 say?'], ['reg:29', 'What does Regulation 29 say?'], ['ready', 'Is the report ready?'], ['changes', 'What have I changed?']];
+  function drawer() {
+    return '<aside class="drawer" aria-label="Ask panel"><div class="dh"><b>Ask</b><button class="btn" data-act="ask-toggle">Close</button></div><div class="db">' +
+      '<p class="sub">Answers come from the deal data and the regulation text covered by this demonstration, with the source shown. This panel never changes anything.</p>' +
+      '<div class="row">' + SUGGEST.map(function (q) { return '<button class="btn" data-act="ask-q" data-q="' + q[0] + '">' + esc(q[1]) + '</button>'; }).join('') + '</div>' +
+      app.askLog.slice().reverse().map(function (m) {
+        return '<div class="bub me">' + esc(m.q) + '</div><div class="bub">' + esc(m.a.text) + (m.a.cites.length ? '<div class="cite" style="margin-top:8px">Source: ' + esc(m.a.cites.join(' · ')) + '</div>' : '<div class="cite" style="margin-top:8px">Not found</div>') + '</div>';
+      }).join('') + '</div><div class="df"><label class="field" style="margin:0"><span>Your question</span><input id="askText" placeholder="Type a question"></label>' +
+      '<p><button class="btn p" data-act="ask-send">Ask</button></p></div></aside>';
+  }
+
+  /* ------------------------------------------------------------ modules (E10): DRHP Review, Review Module, Diligence Module */
+  var M = window.Modules;
+  var MODNAV = [['portfolio', 'All deals'], ['home', 'Dashboard'], ['drhp', '1 · DRHP Review'], ['review', '2 · Review Module'], ['diligence', '3 · Diligence Module'],
+    ['projects', 'My projects'], ['vault', 'Evidence vault'], ['audit', 'Audit trail']];
+  var CHIP = { Present: 'ok', Thin: 'warn', Missing: 'bad', 'Not assessed': 'plain', 'Not run': 'plain', Matches: 'ok', Differs: 'bad', 'Not in document': 'warn',
+    'Not in source': 'warn', 'Data not available': 'plain', 'Looks off': 'bad', Verify: 'warn', Reasonable: 'ok', Evidenced: 'ok', Verified: 'ok',
+    'Cross-matched': 'ok', 'Itemisation pending': 'warn', Disclosed: 'ok', 'Not disclosed': 'bad', accepted: 'ok', rejected: 'bad',
+    Draft: 'plain', 'In progress': 'warn', Reviewed: 'ok' };
+  function sc(st) { return '<span class="chip ' + (CHIP[st] || 'plain') + '">' + esc(st) + '</span>'; }
+  function dis(a) { return can(a) ? '' : ' hidden disabled'; }
+  function stamp(t) { return String(t || '').replace('T', ' ').slice(0, 16); }
+
+  function external() { return !!D.allowedViews(app.role); }
+
+  /* ---- E14: a text field next to a dropdown shows an example that fits the option chosen ---- */
+  var PH_KIND = {
+    'DIN': 'e.g. 00012345 (8-digit Director Identification Number)',
+    'Director / KMP name': 'e.g. full name of the director or KMP, as in the DRHP',
+    'Promoter name': 'e.g. promoter or promoter-group entity name, as in the DRHP',
+    'Company number (CIN)': 'e.g. L17110MH1973PLC019786',
+    'PAN': 'e.g. ABCDE1234F',
+    'Legislation / Act': 'e.g. Companies Act, 2013, section 149(3)',
+    'Aadhaar': 'Not searchable: Aadhaar search is legally restricted'
+  };
+  var PH_HEAD = {   // the 18 Schedule VI heads, then the four Settings groups (rule|owner)
+    'Cover pages': 'BRLM names and contact details match the engagement letters',
+    'Table of contents': 'Every chapter listed has a matching page number',
+    'Definitions and abbreviations': 'Every defined term is used consistently in the document',
+    'Offer Document summary': 'Summary figures tie to the restated financial statements',
+    'Risk factors': 'Each risk is quantified where its impact can be measured',
+    'Introduction': 'Offer size matches the board and shareholder resolutions',
+    'General information': 'A monitoring agency is named for an issue above ₹100 crore',
+    'Capital structure': 'RoC filing receipts are held for every allotment',
+    'Particulars of the issue': 'Each object is backed by a quotation less than six months old',
+    'About the Issuer': 'At least two independent directors sit on the board',
+    'Financial statements': 'A peer-reviewed auditor\'s certificate is on file',
+    'Legal and other information': 'Litigation above the materiality threshold is itemised by forum',
+    'Information with respect to group companies': 'Financials of the top five group companies are on the website',
+    'Other regulatory and statutory disclosures': 'Promoters are confirmed as not debarred by SEBI',
+    'Offering information': 'Minimum subscription is stated as 90% of the fresh issue',
+    'Any other material disclosures': 'Material developments since the last balance sheet date are listed',
+    'Fast track public issue': 'Fast-track eligibility is confirmed by the auditor',
+    'Other information': 'Material contracts are listed for inspection',
+    'Board and governance': 'At least two independent directors|Company secretary',
+    'Objects of the offer': 'Each object is backed by a quotation less than six months old|Legal counsel'
+  };
+  var PH_SETTINGS_OWNER = { 'Board and governance': 'Company secretary', 'Capital structure': 'Registrar to the issue', 'Objects of the offer': 'Legal counsel', 'Financial statements': 'Statutory auditor' };
+  var PH_AGENT = {
+    'Legal diligence': 'e.g. Review the outstanding litigation chapter',
+    'Financial diligence': 'e.g. Tie the restated financials to the auditor\'s report',
+    'Tax diligence': 'e.g. Itemise direct and indirect tax claims by forum'
+  };
+  function phAttr(v) { return ' data-ph="' + esc(v) + '"'; }
+  function applyPh(sel) {
+    var o = sel.options[sel.selectedIndex];
+    if (!o) return;
+    var ids = sel.dataset.phFor.split(','), vals = String(o.dataset.ph || '').split('|');
+    ids.forEach(function (id, i) { var t = $(id); if (t && vals[i] !== undefined) t.placeholder = vals[i]; });
+  }
+
+  function modalHtml() {
+    var m = app.modal;
+    if (!m) return '';
+    var s = S(), body = '', title = '', foot = '';
+    if (m.kind === 'counsel') {
+      title = 'Draft email / Word / Copy — to counsel';
+      body = '<p class="sub">Compiled from the accepted changes, the rejections and the heads still thin or missing. Fully editable. ' +
+        '<b>⚠ This is an internal communication to advisers — not a regulatory/offer document.</b></p>' +
+        '<label class="field"><span>Subject</span><input type="text" id="md_sub" value="' + esc(m.subject) + '"></label>' +
+        '<label class="field"><span>Message</span><textarea id="md_body" rows="14" class="ta">' + esc(m.body) + '</textarea></label>';
+      foot = '<button class="btn p" data-act="save-draft-modal"' + dis('save_draft') + '>Save draft</button>' +
+        '<button class="btn" data-act="copy-draft">Copy</button>' +
+        '<button class="btn" data-act="download-draft-doc">Download for Word</button>' +
+        '<button class="btn" data-act="download-draft-txt">Download as text</button>' +
+        '<button class="btn" data-act="mailbox">Push to mailbox</button>' +
+        '<button class="btn" data-act="send-app">Send from app</button>';
+    } else if (m.kind === 'report') {
+      title = 'DRHP review report';
+      var rs = M.reportSummary(s, app.deal);
+      body = !rs ? '<p class="sub">Run the DRHP review first.</p>' :
+        '<p class="sub">' + esc(deal().name) + ' · run ' + rs.run + ' · ' + esc(D.ROLE_LABEL[app.role] || app.role) + '</p>' +
+        '<div class="grid" style="margin:8px 0">' +
+        '<div class="card"><div class="sub lab">Completeness</div><div class="big">' + rs.completeness + ' of ' + rs.of + '</div><div class="sub">Schedule VI heads present</div></div>' +
+        '<div class="card"><div class="sub lab">Open gaps</div><div class="big">' + rs.gaps.length + '</div><div class="sub">thin or missing heads</div></div>' +
+        '<div class="card"><div class="sub lab">Undisclosed</div><div class="big" style="color:var(--' + (rs.undisclosed.length ? 'bad' : 'ok') + ')">' + rs.undisclosed.length + '</div><div class="sub">material omissions</div></div></div>' +
+        '<h3>Open disclosure gaps</h3>' + (rs.gaps.length ? '<ul class="plain">' + rs.gaps.map(function (g) { return '<li>' + sc(g.status) + ' ' + esc((g.no ? '(' + g.no + ') ' : '') + g.title) + '</li>'; }).join('') + '</ul>' : '<p class="sub">None.</p>') +
+        '<h3>Scan findings</h3><p>' + sevChip('block') + ' ' + rs.blocking + ' &nbsp;' + sevChip('review') + ' ' + rs.review + ' &nbsp;' + sevChip('ok') + ' ' + rs.verified + '</p>' +
+        '<h3>Material diligence matters</h3>' + (rs.material.length ? '<ul class="plain">' + rs.material.map(function (e) { return '<li>' + esc(e.type + ' — ' + e.party + ' — ₹' + e.amount + ' crore') + ' <span class="cite">' + esc(e.ref) + '</span></li>'; }).join('') + '</ul>' : '<p class="sub">None decided material.</p>') +
+        '<h3>Undisclosed matters</h3>' + (rs.undisclosed.length ? rs.undisclosed.map(function (e) { return '<div class="omission"><b>⚠ ' + esc(e.type) + '</b> <span class="cite">' + esc(e.ref) + '</span><div class="sub">Material and not found in the DRHP.</div></div>'; }).join('') :
+          '<div class="clear"><b>✓ The material matters in the register reconcile to the DRHP</b></div>') +
+        '<h3 style="margin-top:16px">Recommended next steps</h3><ul>' + rs.nextSteps.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' +
+        '<details><summary>Full report text</summary><pre class="quote">' + esc(M.reviewReport(s, app.deal)) + '</pre></details>';
+      foot = '<button class="btn p" data-act="download-review-doc"' + (rs ? '' : ' disabled') + '>Download for Word</button><button class="btn" data-act="copy-report-review">Copy report</button><button class="btn" data-act="print-report">Print / PDF</button>';
+    } else if (m.kind === 'newreview') {
+      title = 'New review project';
+      body = '<p class="sub">Name the task, for example a chapter, a section or a specific check.</p>' +
+        '<label class="field"><span>Name</span><input type="text" id="nr_name" placeholder="Auditor\'s report vs DRHP financials"></label>';
+      foot = '<button class="btn p" data-act="new-review"' + dis('new_review') + '>Create project</button>';
+    } else if (m.kind === 'houserule') {
+      title = 'Add a firm house rule';
+      body = '<p class="sub">A firm-specific check on top of the SEBI ICDR requirements. Saved to this deal and added to the checklist.</p>' +
+        '<label class="field"><span>Disclosure head</span><select class="f" id="hr_head" data-ph-for="hr_text">' + (M.coverage(app.deal) || { items: [] }).items.map(function (i) {
+          return '<option value="' + esc(i.title) + '"' + phAttr('e.g. ' + (PH_HEAD[i.title] || 'a check for this head')) + '>(' + i.no + ') ' + esc(i.title) + '</option>'; }).join('') + '</select></label>' +
+        '<label class="field"><span>Rule</span><input type="text" id="hr_text" placeholder="' + esc('e.g. ' + PH_HEAD['Cover pages']) + '"></label>';
+      foot = '<button class="btn p" data-act="add-house-rule-modal"' + dis('edit_house_rules') + '>Add rule</button>';
+    } else if (m.kind === 'assign') {
+      title = 'Assign diligence agent';
+      body = '<label class="field"><span>Agent</span><select id="ag_sel" class="f" data-ph-for="ag_task">' + M.AGENTS.map(function (a) { return '<option value="' + a.id + '"' + phAttr(PH_AGENT[a.field] || 'e.g. the task to hand over') + '>' + esc(a.name + ' — ' + a.field) + '</option>'; }).join('') + '</select></label>' +
+        '<label class="field"><span>Task</span><input type="text" id="ag_task" placeholder="' + esc(PH_AGENT[M.AGENTS[0].field]) + '"></label>';
+      foot = '<button class="btn p" data-act="assign-agent"' + dis('assign_agent') + '>Assign</button>';
+    }
+    return '<div class="modal-bg" data-act="modal-close-bg"></div><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mdt">' +
+      '<div class="spread"><h2 id="mdt">' + esc(title) + '</h2><button class="btn" data-act="modal-close" aria-label="Close">×</button></div>' + body +
+      '<div class="row" style="margin-top:16px">' + foot + '<button class="btn" data-act="modal-close">Done</button></div></div>';
+  }
+
+
+  /* ---- layout helpers (E12): accordion sections, tabs and menus keep similar options together ---- */
+  function isOpen(key, dflt) { return app.open && app.open[key] !== undefined ? !!app.open[key] : !!dflt; }
+  function acc(key, title, summary, body, dflt) {
+    var open = isOpen(key, dflt);
+    return '<section class="acc card"><h2 class="acch"><button class="accb" data-act="section-toggle" data-k="' + key + '" data-open="' + open + '" aria-expanded="' + open +
+      '" aria-controls="acc_' + key + '"><span class="car" aria-hidden="true">' + (open ? '▾' : '▸') + '</span> ' + title + '</button>' +
+      (open ? '' : '<span class="sub accs">' + esc(summary) + '</span>') + '</h2>' + (open ? '<div id="acc_' + key + '">' + body + '</div>' : '') + '</section>';
+  }
+  function tabsRow(act, cur, items, label) {
+    return '<div class="row" role="tablist" style="margin-top:16px" aria-label="' + esc(label) + '">' + items.map(function (x) {
+      return '<button class="btn' + (cur === x[0] ? ' p' : '') + '" role="tab" aria-selected="' + (cur === x[0]) + '" data-act="' + act + '" data-t="' + x[0] + '">' + x[1] + '</button>';
+    }).join('') + '</div>';
+  }
+  function menu(label, items) {
+    return '<details class="menu"><summary class="btn">' + label + ' ▾</summary><div class="pop">' + items.join('') + '</div></details>';
+  }
+
+  VIEW['drhp'] = function () {
+    var s = S(), run = M.latestRun(s), c = M.coverage(app.deal), docs = M.library(s, app.deal);
+    var all = M.checklist(s, app.deal), cur = M.currentRun(s);
+    var items = run ? run.items : [];
+    var counts = { Present: 0, Thin: 0, Missing: 0 };
+    items.forEach(function (i) { if (counts[i.status] !== undefined) counts[i.status]++; });
+    var gapsOnly = app.gaps !== false;
+    var shown = gapsOnly ? items.filter(function (i) { return i.status === 'Thin' || i.status === 'Missing' || (i.source === 'House rule' && i.status !== 'Present'); }) : items;
+    var v = M.versions(app.deal), tab = app.vtab || 'diff', drafts = M.savedDrafts(s, app.deal);
+    var head = '<div class="card"><h1>1 · DRHP Review</h1>' +
+      '<p class="sub">Score the filing against SEBI ICDR Schedule VI, then accept or reject each suggested change.</p>' +
+      '<p style="margin-top:16px"><b>Completeness score: ' + (run ? run.score + ' of ' + run.of + ' heads present' : 'not run yet') + '</b>' +
+      (run ? ' <span class="chip ok">Present ' + counts.Present + '</span> <span class="chip warn">Thin ' + counts.Thin + '</span> <span class="chip bad">Missing ' + counts.Missing + '</span>' : '') + '</p>' +
+      '<p class="sub">Last run ' + (run ? esc(stamp(run.at)) + ' by ' + esc(run.by) : 'never') + '.' + (c && c.synthetic ? ' Coverage on this synthetic deal is hard-coded.' : '') +
+      (c ? '' : ' Data not available: no filing coverage is held for this deal.') + '</p>' +
+      '<div class="row" style="margin-top:16px"><button class="btn p" data-act="run-drhp" data-busy="Running review…"' + (c ? dis('run_drhp_review') : ' disabled') + '>Run DRHP review</button>' +
+      '<button class="btn" data-act="report-open" data-busy="Preparing report…"' + (run ? '' : ' disabled') + '>Generate review report</button>' +
+      '<button class="btn" data-act="history-open">Run history (' + M.runs(s).length + ')</button></div></div>';
+    var skip = app.drhpSkip || {};
+    var docsBody = '<p class="sub">Choose the documents for the next run. Upload new ones in the Evidence vault.</p>' +
+      '<ul class="plain">' + docs.map(function (d) {
+        var on = !skip[d.name], id = 'dd_' + d.name.replace(/[^A-Za-z0-9]/g, '_');
+        return '<li><label for="' + id + '"><input type="checkbox" id="' + id + '" data-act="drhp-doc" data-name="' + esc(d.name) + '"' + (on ? ' checked' : '') + '> ' + esc(d.name) + '</label>' +
+          ' <span class="chip ' + (/OCR/.test(d.parse || '') ? 'warn' : 'ok') + '">' + esc(d.parse || 'parsed') + '</span> <span class="chip plain">' + esc(d.category) + '</span></li>';
+      }).join('') + '</ul>' + vaultLink() +
+      (run && run.docs ? '<p class="sub" style="margin-top:8px">Run ' + run.no + ' used: ' + esc(run.docs.join(', ')) + '.</p>' : '');
+    var listBody = '<p class="sub">Present means a heading was found and the section runs two pages or more. Content is not assessed.</p>' +
+      '<div class="row"><button class="btn" data-act="gaps-toggle">' + (gapsOnly ? 'Show all heads' : 'Show gaps only') + '</button>' +
+      '<button class="btn" data-act="houserule-open"' + dis('edit_house_rules') + '>+ Add a firm house rule</button></div>' +
+      (run ? (shown.length ? '<div class="tblw"><table><tr><th scope="col">No.</th><th scope="col">Disclosure head</th><th scope="col">Status</th><th scope="col">Page</th><th scope="col">Source</th></tr>' + shown.map(function (i) {
+        return '<tr><td>' + (i.no || '') + '</td><td>' + esc(i.title) + '</td><td>' + sc(i.status) + '</td><td class="cite">' + (i.page || '') + '</td><td>' + esc(i.source === 'House rule' ? 'Firm house rule' : 'Schedule VI, Part A') + '</td></tr>';
+      }).join('') + '</table></div>' : '<p class="sub">No gaps: every scored head has a section heading. Choose "Show all heads" to list them.</p>')
+        : '<p class="sub">Run the DRHP review to see which of the ' + all.length + ' heads are present, thin or missing.</p>');
+    var cmpBody = tabsRow('vtab', tab, [['v1', 'V1 (first filing)'], ['v2', 'V2 (post-SEBI)'], ['diff', 'What changed V1→V2']], 'Versions') +
+      '<p class="sub">V1 is the DRHP first filed with SEBI; V2 is the draft re-filed after its observations.</p>' +
+      (!v.available ? '<p class="flash">' + esc(v.reason) + '</p>' : (v.synthetic ? '<p class="sub"><b>Synthetic pair:</b> ' + esc(v.label) + '.</p>' : '') +
+        '<div class="tblw"><table><tr><th scope="col">Change</th><th scope="col">' + (tab === 'v1' ? 'V1' : tab === 'v2' ? 'V2' : 'V1 → V2') + '</th><th scope="col">Where</th><th scope="col">Decision</th></tr>' + v.changes.map(function (ch) {
+          var cur = M.currentDecision(s, ch.id), val = tab === 'v1' ? ch.v1 : tab === 'v2' ? ch.v2 : ch.v1 + ' → ' + ch.v2;
+          var dp = decisionParts('ver|' + ch.id, cur ? { st: cur.decision, brlm: cur.brlm, head: cur.head } : null, ['accepted', 'rejected'], 'decide_change');
+          return '<tr><td><b>' + esc(ch.head) + '</b><div class="sub">' + esc(ch.note) + '</div></td><td>' + esc(val) + '</td><td class="cite">' + esc(ch.chapter) + ', p.' + ch.page + '</td><td>' +
+            (cur ? sc(cur.decision) : '<span class="sub">Open</span>') + dp.trail + '<div class="row" style="margin-top:8px">' + dp.buttons + '</div>' + dp.form + '</td></tr>';
+        }).join('') + '</table></div>') +
+      '';
+    var histBody = '<p class="sub">Open a run to load its suggested changes.</p>' + (M.runs(s).slice().reverse().map(function (r) {
+      var loaded = cur && cur.id === r.id;
+      return '<div class="todo"><span class="num">' + r.no + '</span><div><b>' + esc(stamp(r.at)) + '</b>' + (loaded ? ' <span class="chip ok">loaded</span>' : '') +
+        '<div class="sub">' + (r.suggestions ? r.suggestions.length + ' to action (' + r.blocking + ' blocking, ' + r.review + ' review' + (r.verified ? ', ' + r.verified + ' verified' : '') + '). ' : '') +
+        r.score + ' of ' + r.of + ' heads present. By ' + esc(r.by) + '.</div></div>' +
+        '<button class="btn" data-act="run-open" data-id="' + r.id + '"' + (loaded ? ' disabled' : '') + '>Open</button></div>';
+    }).join('') || '<p class="sub">No runs yet. Choose "Run DRHP review".</p>');
+    var inner = head + scanPanel(s) +
+      acc('changes', 'Suggested changes & findings', cur && cur.suggestions ? cur.suggestions.filter(function (x) { return x.st === 'open'; }).length + ' open of ' + cur.suggestions.length + ' in run ' + cur.no : 'run the review to fill it', changesBody(s, cur, drafts), true) +
+      acc('checklist', 'SEBI (ICDR) Schedule VI, Part A — disclosure checklist', run ? counts.Thin + ' thin, ' + counts.Missing + ' missing' : 'run the review to fill it', listBody, false) +
+      acc('docs', 'Documents for this review', (docs.length - Object.keys(skip).filter(function (k) { return skip[k]; }).length) + ' of ' + docs.length + ' vault documents chosen', docsBody, false) +
+      acc('facts', 'Deal facts', 'net tangible assets, monetary assets and net worth by year', factsBody(s), false) +
+      acc('compare', 'DRHP — compare versions', v.available ? v.changes.length + ' change(s)' : 'one version held', cmpBody, false) +
+      acc('history', 'Run history', M.runs(s).length + ' run(s)', histBody, !!app.histOpen);
+    return shell(inner, true);
+  };
+
+  /* ---- E13: DRHP Review parts ---- */
+  var SEV = { block: ['bad', 'Blocking'], review: ['warn', 'Review'], ok: ['ok', 'Verified'] };
+  function sevChip(x) { var v = SEV[x] || ['plain', 'Info']; return '<span class="chip ' + v[0] + '">' + v[1] + '</span>'; }
+
+  /* ---- E15-2/3: one decision control for every finding ----
+   * key is 'sug|run|id', 'ver|id', 'mat|review|fact' or 'op|opinion|index'. The BRLM reviewer decides, with a note that is
+   * required for the negative choice; the ECM Head only overrides an existing decision, with a note, and may reopen it. */
+  var DEC_WORDS = { accepted: 'Accept', rejected: 'Reject', confirmed: 'Confirm', dismissed: 'Dismiss' };
+  var DEC_CHIP = { accepted: 'ok', confirmed: 'ok', rejected: 'bad', dismissed: 'bad' };
+  var DEC_PAST = { accepted: 'Accepted', rejected: 'Rejected', confirmed: 'Confirmed', dismissed: 'Dismissed' };
+  function decChip(d) { return '<span class="chip ' + (DEC_CHIP[d] || 'plain') + '">' + esc(DEC_PAST[d] || d) + '</span>'; }
+  function decisionParts(key, item, kinds, perm) {
+    item = M.legacyDecision(item || {});
+    var pos = kinds[0], neg = kinds[1], cur = app.deciding && app.deciding.k === key ? app.deciding : null, buttons = '', form = '';
+    function nm(by) { return String(by || '').replace(/ \([^)]*\)$/, ''); }   // "S. Iyer (BRLM reviewer)" shows as "S. Iyer" after the label
+    var trail = (item.brlm ? '<div class="trail"><span class="sub">BRLM reviewer, ' + esc(nm(item.brlm.by)) + ':</span> ' + decChip(item.brlm.decision) + (item.brlm.note ? ' ' + esc(item.brlm.note) : '') + '</div>' : '') +
+      (item.head ? '<div class="trail"><span class="sub">ECM Head override, ' + esc(nm(item.head.by)) + ':</span> ' + decChip(item.head.decision) + ' ' + esc(item.head.note) + '</div>' : '');
+    if (cur) {
+      var override = !can(perm), required = override || cur.d === neg;
+      var ph = override ? 'Why override? For example: agreed with the company on the call' : cur.d === neg ? 'Why ' + DEC_WORDS[neg].toLowerCase() + '? For example: counsel confirmed the section is complete' : 'Optional: what will change';
+      form = '<div class="row" style="margin-top:12px;align-items:flex-end"><label class="field" style="flex:1 1 280px"><span>' + (override ? 'Override to ' + DEC_WORDS[cur.d] : DEC_WORDS[cur.d]) + ': note' + (required ? '' : ' (optional)') + '</span>' +
+        '<input type="text" id="dn_note" placeholder="' + esc(ph) + '"></label>' +
+        '<button class="btn p" data-act="dec-do">' + (override ? 'Override' : DEC_WORDS[cur.d]) + '</button><button class="btn" data-act="dec-cancel">Cancel</button></div>';
+    } else if (can(perm)) {
+      buttons = item.head ? '<span class="sub">Locked by the ECM Head\'s override</span>' :
+        '<button class="btn" data-act="dec-start" data-k="' + esc(key) + '" data-d="' + pos + '"' + (item.st === pos ? ' disabled' : '') + '>' + DEC_WORDS[pos] + '</button>' +
+        '<button class="btn" data-act="dec-start" data-k="' + esc(key) + '" data-d="' + neg + '"' + (item.st === neg ? ' disabled' : '') + '>' + DEC_WORDS[neg] + '</button>';
+    } else if (can('override_decision')) {
+      buttons = !item.brlm ? '<span class="sub">Waiting for the BRLM reviewer</span>' :
+        '<button class="btn" data-act="dec-start" data-k="' + esc(key) + '" data-d="' + (item.st === pos ? neg : pos) + '">Override to ' + DEC_WORDS[item.st === pos ? neg : pos] + '</button>' +
+        (item.head ? '<button class="btn" data-act="dec-reopen" data-k="' + esc(key) + '">Reopen</button>' : '');
+    }
+    return { buttons: buttons, form: form, trail: trail };
+  }
+  function factsBody(s) {
+    var f = M.dealFacts(s, app.deal);
+    return '<p class="sub">From the facts held for this deal; each cell cites its page. A pending figure is not yet confirmed by a person.</p>' +
+      '<div class="tblw"><table><tr><th scope="col">Metric (₹ crore)</th>' + f.years.map(function (y) { return '<th scope="col">' + esc(y) + '</th>'; }).join('') + '</tr>' +
+      f.rows.map(function (r) {
+        return '<tr><td>' + esc(r.label) + '</td>' + f.years.map(function (y) {
+          var c = r.cells[y];
+          return '<td>' + (c ? '<b>' + esc(c.value) + '</b> <span class="cite">p.' + (c.page || '?') + '</span>' + (c.status === 'confirmed' ? '' : ' <span class="chip plain">pending</span>') : '<span class="sub">Data not available</span>') + '</td>';
+        }).join('') + '</tr>';
+      }).join('') + '</table></div>' +
+      '<p style="margin-top:8px"><b>Offer structure:</b> ' + esc(f.offer) + ' · <b>Average operating profit:</b> ' +
+      (f.aop ? esc(f.aop.value + ' ' + f.aop.unit + ' (' + f.aop.fy + ', page ' + f.aop.page + ')') : 'Data not available') + '</p>' +
+      '<p class="sub"><b>Objects of the offer:</b> ' + esc(f.objects) + '</p>';
+  }
+  function scanPanel(s) {
+    var sc = app.scan, r = sc && M.runs(s).filter(function (x) { return x.id === sc.run; })[0];
+    if (!r || !r.sections) return '';
+    var n = r.sections.length, i = Math.min(sc.i, n), done = i >= n, stream = [];
+    var secs = r.sections.map(function (x, k) {
+      var st = k < i ? 'done' : k === i && !done ? 'scanning' : 'pending', nf = x.findings.length;
+      var worst = x.findings.some(function (f) { return f.sev === 'block'; }) ? 'bad' : x.findings.some(function (f) { return f.sev === 'review'; }) ? 'warn' : 'ok';
+      if (k < i) x.findings.forEach(function (f) { stream.push({ f: f, nm: x.nm }); });
+      return '<div class="ssec ' + st + '"><span aria-hidden="true">' + (st === 'done' ? (worst === 'bad' ? '🔴' : worst === 'warn' ? '🟠' : '🟢') : st === 'scanning' ? '◌' : '○') + '</span><b>' + esc(x.nm) + '</b>' +
+        '<span class="r">' + (st === 'done' ? '<span class="chip ' + worst + '">' + (nf ? nf + ' finding' + (nf > 1 ? 's' : '') : 'no findings') + '</span> ' : '') + '<span class="cite">' + esc(x.ref) + '</span></span></div>';
+    }).join('');
+    var total = r.blocking + r.review + r.verified;
+    return '<section class="card" aria-live="polite"><div class="spread"><h2>Scanning DRHP — section by section</h2><span class="sub">' +
+      (done ? 'done — ' + total + ' findings across ' + n + ' sections' : 'scanning ' + (i + 1) + ' of ' + n + ' — ' + esc(r.sections[i].nm) + '…') + '</span>' +
+      (done ? '<button class="btn" data-act="scan-close">Close</button>' : '<button class="btn" data-act="scan-skip">Skip to results</button>') + '</div>' +
+      '<div class="pbar"><i style="width:' + Math.round(i / n * 100) + '%"></i></div>' +
+      '<div class="scan"><div><div class="sub lab">Schedule VI, Part A — disclosure heads</div>' + secs + '</div>' +
+      '<div><div class="sub lab">Suggested changes &amp; findings</div>' + (stream.length ? stream.map(function (x) {
+        return '<div class="finding sev-' + x.f.sev + '"><div>' + sevChip(x.f.sev) + ' <b>' + esc(x.f.t) + '</b></div><div class="sub">' + esc(x.nm) + ' · ' + esc(x.f.m) + '</div></div>';
+      }).join('') : '<p class="sub">Findings appear here as each section is scanned.</p>') + '</div></div></section>';
+  }
+  // One line per suggested change; its detail opens on click. The decision control asks for a note when deciding.
+  function changesBody(s, cur, drafts) {
+    if (!cur || !cur.suggestions) return '<p class="sub">Run the DRHP review to list suggested changes.</p>';
+    var open = app.sugOpen || {};
+    var list = cur.suggestions.map(function (c) {
+      var isOpen = !!open[c.id], dp = decisionParts('sug|' + cur.id + '|' + c.id, c, ['accepted', 'rejected'], 'decide_change');
+      var st = c.st === 'accepted' ? '<span class="chip ok">Accepted — in my notes</span>' : c.st === 'rejected' ? '<span class="chip bad">Red flag · kept in history</span>' : '';
+      return '<div class="finding sev-' + c.sev + ' st-' + c.st + '"><div class="spread">' +
+        '<button class="sugrow" data-act="sug-toggle" data-id="' + c.id + '" aria-expanded="' + isOpen + '"><span class="car" aria-hidden="true">' + (isOpen ? '▾' : '▸') + '</span> <b>' + esc(c.id + ' ' + c.t) + '</b></button>' +
+        '<div class="row">' + sevChip(c.sev) + st + dp.buttons + '</div></div>' + dp.form + dp.trail +
+        (isOpen ? '<p class="sub" style="margin-top:8px">' + esc(c.loc) + '</p>' +
+          '<div class="sxs"><div class="pane"><div class="ph">Found in the DRHP (as-is)</div><div class="pb">' + esc(c.found) + '</div></div>' +
+          '<div class="pane"><div class="ph">Should be · per source (to-be)</div><div class="pb">' + esc(c.expected) + '</div></div></div>' +
+          '<div class="fix"><b>Suggested change →</b> ' + esc(c.suggest) + '</div>' +
+          (/^None/.test(c.required) ? '' : '<div class="req"><b>Required →</b> ' + esc(c.required) + '</div>') : '') + '</div>';
+    }).join('');
+    return '<p class="sub">' + (can('override_decision') ? 'The BRLM reviewer decides each change. Override a decision you disagree with, with a note.' : 'Accept adds a change to your notes and the counsel email. Reject keeps it as a red flag; say why.') + '</p>' +
+      (list || '<p class="sub">Nothing to action in this run.</p>') +
+      '<div class="row" style="margin-top:16px"><button class="btn" data-act="save-changes" data-busy="Saving…"' + dis('save_draft') + '>Save draft of changes</button>' +
+      '<button class="btn" data-act="draft-open">Draft email / Word / Copy — to counsel</button>' +
+      '<button class="btn" data-act="drafts-toggle">Saved drafts (' + drafts.length + ')</button></div>' +
+      (app.drafts ? draftsTable(drafts) : '');
+  }
+  function draftsTable(drafts) {
+    return '<div class="tblw"><table><tr><th scope="col">Saved</th><th scope="col">Subject</th><th scope="col"></th></tr>' + (drafts.map(function (d) {
+      return '<tr><td class="cite">' + esc(stamp(d.at)) + '</td><td>' + esc(d.subject) + '</td><td><button class="btn" data-act="draft-edit" data-id="' + d.id + '">Open</button> <button class="btn" data-act="draft-remove" data-id="' + d.id + '"' + dis('save_draft') + '>Remove</button></td></tr>';
+    }).join('') || '<tr><td colspan="3" class="sub">No saved drafts yet.</td></tr>') + '</table></div>';
+  }
+
+  VIEW['review'] = function () {
+    var s = S(), reviews = M.reviews(s), cur = M.openReview(s, app.rv), ops = M.opinions(s), op = ops.filter(function (o) { return o.id === app.opId; })[0] || ops[0];
+    var type = app.opType || M.DOC_TYPES[0].id, tab = app.rtab || 'match';
+    var match = '<div class="grid"><div><div class="spread"><h3>Review projects</h3><button class="btn p" data-act="newreview-open"' + dis('new_review') + '>+ New review</button></div>' +
+      '<p class="sub">Each project saves its own findings and progress. Open one to continue where you left off.</p>' +
+      (reviews.length ? reviews.map(function (r) {
+        return '<div class="todo"><span class="num">' + (r.findings.length || '·') + '</span><div><b>' + esc(r.name) + '</b>' + (cur && cur.id === r.id ? ' <span class="chip ok">open</span>' : '') +
+          '<div class="sub">' + esc(r.status) + ' · ' + r.findings.length + ' findings · ' + (r.runs || 0) + ' run(s) · ' + esc(stamp(r.updatedAt || r.createdAt)) + '</div>' +
+          '<div class="pbar" role="img" aria-label="' + (r.progress || 0) + '% done"><i style="width:' + (r.progress || 0) + '%"></i></div></div>' +
+          '<button class="btn" data-act="review-open" data-id="' + r.id + '">Open</button></div>';
+      }).join('') : '<p class="sub">No review projects yet. Choose "+ New review".</p>') + '</div>' +
+      '<div>' + (cur ? '<div class="spread"><h3>' + esc(cur.name) + '</h3>' + sc(cur.status) + '</div>' +
+        '<p class="sub">Progress saves automatically. Add more documents and re-run any time.</p>' +
+        '<div class="zones">' + zone(cur, 'truth', '① Source-of-truth documents', 'The correct information — any file type. Several files allowed.') +
+        zone(cur, 'review', '② Documents to review', 'Whatever you want checked against the source of truth.') + '</div>' +
+        '<div class="row" style="margin-top:16px"><button class="btn p" data-act="run-project" data-busy="Running review…" data-id="' + cur.id + '"' + dis('run_match') + '>Run review</button>' +
+        '<button class="btn" data-act="save-project" data-busy="Saving…" data-id="' + cur.id + '"' + dis('new_review') + '>Save project</button>' +
+        '<span class="sub">' + ((cur.truth || []).length + (cur.review || []).length) + ' file(s)</span></div>' +
+        '<p class="sub">The demonstration records file names; it reads no file. The source of truth is a synthetic sample auditor\'s report that equals the confirmed facts except for one planted difference. Tolerance: 0.5%.</p>' +
+        (cur.findings.length ? '<div class="tblw' + fr('project') + '"><table><tr><th scope="col">Field</th><th scope="col">Source</th><th scope="col">Document</th><th scope="col">Result</th><th scope="col">Confidence</th><th scope="col">Page</th><th scope="col">Decision</th></tr>' + cur.findings.map(function (f) {
+          var dp = f.status === 'Differs' ? decisionParts('mat|' + cur.id + '|' + f.factId, f, ['accepted', 'rejected'], 'decide_change') : null;
+          return '<tr><td>' + esc(f.field) + '</td><td>' + (f.source === null ? 'Data not available' : esc(f.source)) + '</td><td>' + (f.document === null ? 'Data not available' : esc(f.document)) + '</td><td>' + sc(f.status) +
+            (f.gapPct ? '<div class="sub">' + f.gapPct.toFixed(1) + '% apart</div>' : '') + '</td><td>' + (f.band && f.status !== 'Data not available' ? '<span class="chip ' + (f.band === 'High' ? 'ok' : f.band === 'Medium' ? 'warn' : 'bad') + '">' + f.band + '</span><div class="sub">' + esc(f.bandReason) + '</div>' : '') + '</td><td class="cite">' + (f.page || 'n/a') + '</td><td>' + (dp ? (f.st ? sc(f.st) : '') + dp.trail + '<div class="row">' + dp.buttons + '</div>' + dp.form : '<span class="sub">No decision needed</span>') + '</td></tr>';
+        }).join('') + '</table></div>' : '<p class="sub">Run the match to fill the findings.</p>')
+        : '<p class="sub">Select or create a review project to begin.</p>') + '</div></div>';
+    var auth = '<div class="grid"><div><h3>Upload for an AI opinion</h3><p class="sub">Every figure is recomputed by a rule and every identifier is checked for structure. Sample documents are synthetic; the demonstration reads nothing you upload.</p>' +
+      '<label class="field"><span>Document type</span><select class="f" id="op_type" data-act="op-type">' + M.DOC_TYPES.map(function (d) {
+        return '<option value="' + d.id + '"' + (d.id === type ? ' selected' : '') + '>' + esc(d.label) + '</option>'; }).join('') + '</select></label>' +
+      '<label class="field"><span>Document from the Evidence vault</span><select class="f" id="op_doc"><option value="">None: use the synthetic sample</option>' +
+        M.library(S(), app.deal).map(function (d) { return '<option>' + esc(d.name) + '</option>'; }).join('') + '</select></label>' + vaultLink() +
+      '<p style="margin-top:16px"><button class="btn p" data-act="run-intel" data-busy="Running intelligence…"' + dis('run_intelligence') + '>Run intelligence</button></p>' +
+      '<p class="sub">The checks run on the labelled sample: ' + esc(M.samples()[type].title) + '.</p></div>' +
+      '<div class="' + fr('intel') + '"><h3>AI opinion</h3>' + (op ? '<p class="sub">' + esc(op.title) + (op.doc ? ', for ' + esc(op.doc) : '') + '. Overall ' + sc(op.overall) + ' ' + esc(stamp(op.at)) + '</p>' +
+        op.checks.map(function (c, i) {
+          var dp = decisionParts('op|' + op.id + '|' + i, c, ['confirmed', 'dismissed'], 'confirm_finding');
+          return '<div class="finding"><div class="spread"><b>' + esc(c.name) + '</b>' + sc(c.outcome) + '</div><div>' + esc(c.reason) + '</div><div class="sub">Source: ' + esc(c.source) + '</div>' +
+            dp.trail + '<div class="row" style="margin-top:8px">' + dp.buttons + '</div>' + dp.form + '</div>';
+        }).join('') + '<p class="flash">⚠ ' + esc(M.OPINION_DISCLAIMER) + '</p>' : '<p class="sub">Pick a document type and run the intelligence check.</p>') + '</div></div>';
+    var inner = '<div class="card"><h1>2 · Review Module</h1><p class="sub">First-pass checks you do yourself, before anything reaches counsel.</p>' +
+      tabsRow('review-tab', tab, [['match', 'Match review — source-of-truth vs document under review'], ['auth', 'Authenticity & business-intelligence opinion']], 'Review Module') + '</div>' +
+      '<div class="card" style="margin-top:24px">' + (tab === 'auth' ? auth : match) + '</div>' +
+      acc('agents', 'Diligence agents', M.AGENTS.length + ' agents · ' + M.assignments(s, app.deal).length + ' assigned', agentBlock(), false);
+    return shell(inner, true);
+  };
+  function zone(p, side, title, hint) {
+    var files = p[side] || [];
+    return '<div class="zone ' + (side === 'truth' ? 'truth' : 'rev') + '"><b>' + title + '</b><div class="sub">' + hint + '</div>' +
+      (files.length ? '<ul class="plain">' + files.map(function (f) { return '<li>' + esc(f.name) + ' <span class="chip ' + (/OCR/.test(f.parse) ? 'warn' : 'ok') + '">' + esc(f.parse) + '</span></li>'; }).join('') + '</ul>' : '<p class="sub">No files yet.</p>') +
+      (can('new_review') ? (function () {
+        var left = M.library(S(), app.deal).map(function (d) { return d.name; }).filter(function (n) { return !files.some(function (f) { return f.name === n; }); });
+        return left.length ? '<div class="row" style="align-items:flex-end"><label class="field" style="flex:1 1 200px"><span>From the Evidence vault</span><select class="f" id="zf_' + side + '">' +
+          left.map(function (n) { return '<option>' + esc(n) + '</option>'; }).join('') + '</select></label><button class="btn" data-act="add-file" data-id="' + p.id + '" data-side="' + side + '">Add</button></div>'
+          : '<p class="sub">Every vault document is already on this side.</p>';
+      })() + vaultLink() : '') + '</div>';
+  }
+  function agentBlock() {
+    var s = S(), as = M.assignments(s, app.deal);
+    return '<div class="row">' + (can('assign_agent') ? '<button class="btn" data-act="assign-open">+ Assign diligence agent</button>' : '') + '</div>' + agentList();
+  }
+  function agentList() {
+    var s = S(), as = M.assignments(s, app.deal);
+    return '<ul class="plain">' + M.AGENTS.map(function (a) { return '<li><b>' + esc(a.name) + '</b> — ' + esc(a.field) + '</li>'; }).join('') + '</ul>' +
+      (as.length ? '<div class="tblw"><table><tr><th scope="col">Agent</th><th scope="col">Task</th><th scope="col">Status</th></tr>' + as.map(function (x) {
+        return '<tr><td>' + esc(x.name + ' · ' + x.field) + '</td><td>' + esc(x.task) + '</td><td><button class="btn" data-act="assign-status" data-id="' + x.id + '"' + dis('assign_agent') + '>' + esc(x.status) + '</button></td></tr>';
+      }).join('') + '</table></div>' : '<p class="sub">No assignments yet. Only the ECM Head assigns.</p>');
+  }
+
+  VIEW['diligence'] = function () {
+    var s = S(), k = app.kmp || { kind: M.KINDS[0], value: '', result: null }, reg = M.register(s, app.deal), rec = M.reconcile(s, app.deal), pp = M.promoterProfile(s, app.deal);
+    var tab = app.dtab || 'register';
+    var lib = M.library(s, app.deal).map(function (d) { return d.name; });
+    var regBody = '<div class="spread"><h3>Litigation & dispute register</h3><span class="sub">Materiality — banker decides</span></div>' +
+      (reg.length ? '<div class="tblw"><table><tr><th scope="col">Matter</th><th scope="col">Against</th><th scope="col">Amount</th><th scope="col">Stage</th><th scope="col">Evidence</th><th scope="col">Material?</th></tr>' + reg.map(function (r) {
+        var left = lib.filter(function (n) { return (r.evidence || []).indexOf(n) < 0; }), rid = esc(r.ref).replace(/[^A-Za-z0-9]/g, '_');
+        return '<tr><td><b>' + esc(r.type) + '</b><div class="cite">' + esc(r.ref) + '</div></td><td>' + esc(r.party) + '</td><td>₹' + esc(r.amount) + ' crore</td><td>' + esc(r.stage) + '</td><td>' +
+          ((r.evidence || []).length ? '<ul class="plain">' + r.evidence.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul>' : '<span class="sub">None linked</span>') +
+          (can('save_register') && left.length ? '<div class="row" style="margin-top:8px"><select class="f" id="ev_' + rid + '" aria-label="Evidence from the Evidence vault for ' + esc(r.ref) + '">' +
+            left.map(function (n) { return '<option>' + esc(n) + '</option>'; }).join('') + '</select><button class="btn" data-act="link-evidence" data-ref="' + esc(r.ref) + '">Link</button></div>' : '') + '</td><td>' +
+          (r.materiality ? '<span class="chip ' + (r.materiality === 'material' ? 'bad' : 'ok') + '">' + (r.materiality === 'material' ? 'Material' : 'Not material') + '</span><div class="sub">' + esc(r.note) + '</div>' : '<span class="sub">Open</span>') +
+          (can('set_materiality') ? '<div class="row" style="margin-top:8px"><input type="text" class="inline" id="mt_' + esc(r.ref).replace(/[^A-Za-z0-9]/g, '_') + '" aria-label="Reason for ' + esc(r.ref) + '" placeholder="Reason">' +
+            '<button class="btn" data-act="materiality" data-ref="' + esc(r.ref) + '" data-v="material">Material</button>' +
+            '<button class="btn" data-act="materiality" data-ref="' + esc(r.ref) + '" data-v="not_material">Not material</button></div>' : '') + '</td></tr>';
+      }).join('') + '</table></div>' + vaultLink() + (can('set_materiality') ? '' : '<p class="sub">Only the ECM Head decides materiality.</p>') : '<p class="sub">No matters saved yet. Run a check and save matters to the register.</p>');
+    var scr = M.screening(s, app.deal), ok2 = { green: 'ok', amber: 'warn', red: 'bad', grey: 'plain' };
+    var profBody = '<h3>Promoter / KMP profile</h3><p class="sub">Profile check per promoter, KMP and group entity. ' + esc(pp.note) + '</p>' +
+      '<div class="tblw"><table><tr><th scope="col">Check</th><th scope="col">Result</th><th scope="col">Basis</th></tr>' + scr.map(function (x) {
+        return '<tr><td>' + esc(x.k) + '</td><td><span class="chip ' + ok2[x.ok] + '">' + esc(x.v) + '</span>' + (x.refs && x.refs.length ? '<div class="cite">' + esc(x.refs.join(', ')) + '</div>' : '') +
+          '</td><td class="sub">' + esc(x.basis) + '</td></tr>'; }).join('') + '</table></div>' +
+      '<div class="tblw"><table><tr><th scope="col">Name</th><th scope="col">Type</th><th scope="col">Matters in register</th><th scope="col">Other directorships</th><th scope="col">Blacklist</th></tr>' + pp.entries.map(function (e) {
+        return '<tr><td>' + esc(e.name) + '</td><td>' + esc(e.type) + '</td><td>' + e.litigation + '</td><td>' + e.directorships + '</td><td>' + esc(e.blacklist) + '</td></tr>'; }).join('') + '</table></div>';
+    var om = M.omissions(s, app.deal);
+    var recBody = '<h3>Disclosure vs finding — reconciliation</h3><p class="sub">The control that saves the banker from SEBI: every matter found is checked against what the DRHP discloses (sample disclosure data).</p>' +
+      om.map(function (e) { return '<div class="omission"><b>⚠ OMISSION — ' + esc(e.type) + ' (' + esc(e.party) + ', ₹' + esc(e.amount) + ' crore) — NOT in DRHP</b><div class="sub">' +
+        esc(e.ref) + ' · decided material by the ECM Head (' + esc(e.note) + '). Material → must be disclosed; omission creates SEBI liability.</div></div>'; }).join('') +
+      (rec.length ? '<div class="tblw"><table><tr><th scope="col">Matter</th><th scope="col">In the DRHP?</th><th scope="col">Page</th></tr>' + rec.map(function (r) {
+        return '<tr><td>' + esc(r.type) + '<div class="cite">' + esc(r.ref) + '</div></td><td>' + sc(r.result) + '</td><td class="cite">' + (r.page || 'Data not available') + '</td></tr>'; }).join('') + '</table></div>' :
+        '<p class="sub">Save matters to the register to reconcile them.</p>');
+    var inner = '<div class="card"><h1>3 · Diligence Module</h1><p class="sub">Check promoters and KMP for litigation, save what you find, then reconcile it with the DRHP. The banker decides what is material.</p></div>' +
+      '<div class="card" style="margin-top:24px"><h3>KMP & litigation check</h3><p class="sub">Via a court-data aggregator (the official e-Courts has no private API). ' + esc(M.SAMPLE_SOURCE) + '</p>' +
+      (can('run_check') ? '<div class="row"><label class="field" style="flex:1 1 200px"><span>Identifier</span><select class="f" id="kmp_kind" data-ph-for="kmp_val">' + M.KINDS.concat(['Aadhaar']).map(function (x) { return '<option' + (x === k.kind ? ' selected' : '') + phAttr(PH_KIND[x]) + '>' + esc(x) + '</option>'; }).join('') + '</select></label>' +
+        '<label class="field" style="flex:2 1 260px"><span>Value</span><input type="text" id="kmp_val" value="' + esc(k.value) + '" placeholder="' + esc(PH_KIND[k.kind] || PH_KIND.DIN) + '"></label></div>' +
+        '<p><button class="btn p" data-act="run-check" data-busy="Checking…">Run check</button> <span class="sub">Aadhaar search is disabled (legally restricted).</span></p>' : '<p class="sub">Your role cannot run checks.</p>') +
+      (k.result ? (k.result.refused ? '<p class="flash">' + esc(k.result.reason) + '</p>' :
+        '<p class="sub">Results for ' + esc(k.result.kind) + ' = ' + esc(k.result.value) + ' · ' + esc(k.result.source) + '</p><div class="tblw' + fr('kmp') + '"><table><tr><th scope="col">Ref no.</th><th scope="col">Forum / source</th><th scope="col">Party</th><th scope="col">Type</th><th scope="col"></th></tr>' +
+        k.result.matches.map(function (m) {
+          var saved = reg.some(function (r) { return r.ref === m.ref; });
+          return '<tr><td class="cite">' + esc(m.ref) + '</td><td>' + esc(m.forum) + '</td><td>' + esc(m.party) + '</td><td>' + esc(m.type) + '</td><td>' +
+            (saved ? '<span class="chip ok">In register</span>' : (can('save_register') ? '<button class="btn" data-act="save-register" data-ref="' + esc(m.ref) + '">+ Save to register</button>' : '')) + '</td></tr>';
+        }).join('') + '</table></div><p class="sub">Name-match disambiguation applied. Manual-entry fallback available if the API is down.</p>') : '') + '</div>' +
+      '<div class="card" style="margin-top:24px">' + tabsRow('dil-tab', tab, [['register', 'Register (' + reg.length + ')'], ['profile', 'Promoter / KMP profile'], ['recon', 'Disclosure vs finding']], 'Diligence views') +
+      '<div style="margin-top:16px">' + (tab === 'profile' ? profBody : tab === 'recon' ? recBody : regBody) + '</div></div>' +
+      acc('agents', 'Diligence agents', M.AGENTS.length + ' agents · ' + M.assignments(s, app.deal).length + ' assigned', agentBlock(), false);
+    return shell(inner, true);
+  };
+
+  VIEW['portfolio'] = function () {
+    var f = app.pf || { kind: '', status: '' };
+    var res = M.portfolio(app.states, app.people, app.person, { kind: f.kind, status: f.status });
+    var t = res.totals;
+    var kinds = [['', 'All kinds'], ['positive', 'Positive case'], ['negative', 'Negative case'], ['neutral', 'Neutral case'], ['real', 'Real filings']];
+    var inner = '<div class="card"><h1>All deals</h1><p class="sub">Every deal you are on, in one table. Readiness status is computed from each deal\'s own saved state; the most urgent come first. Deals outside your team are not shown.</p>' +
+      '<p style="margin-top:8px">' + res.statuses.map(function (k) {
+        return '<span class="chip ' + (k === 'Ready' ? 'ok' : k === 'Does not comply' ? 'bad' : 'warn') + '">' + esc(k) + ' · ' + (t.byStatus[k] || 0) + '</span> ';
+      }).join('') + '<span class="chip plain">' + t.deals + ' deals</span> <span class="chip plain">' + t.openFlags + ' open flags</span> <span class="chip plain">' + t.openDiligence + ' diligence items</span> ' +
+      '<span class="chip ' + (t.overdue ? 'bad' : 'plain') + '">' + t.overdue + ' overdue tasks</span></p>' +
+      '<div class="row" style="margin-top:8px"><label class="field" style="margin:0"><span>Kind</span><select class="f" id="pf_kind" data-act="portfolio-filter-kind">' +
+      kinds.map(function (k) { return '<option value="' + k[0] + '"' + (f.kind === k[0] ? ' selected' : '') + '>' + k[1] + '</option>'; }).join('') + '</select></label>' +
+      '<label class="field" style="margin:0"><span>Readiness status</span><select class="f" id="pf_status" data-act="portfolio-filter-status"><option value="">All statuses</option>' +
+      res.statuses.map(function (k) { return '<option' + (f.status === k ? ' selected' : '') + '>' + esc(k) + '</option>'; }).join('') + '</select></label></div></div>' +
+      '<div class="card" style="margin-top:24px"><div class="tblw"><table><tr><th scope="col">Deal</th><th scope="col">Readiness status</th><th scope="col">Facts confirmed</th><th scope="col">Review report</th>' +
+      '<th scope="col">Schedule VI, Part A</th><th scope="col">Open review flags</th><th scope="col">Open diligence items</th><th scope="col">Overdue</th><th scope="col">Next action</th><th scope="col"></th></tr>' +
+      (res.rows.length ? res.rows.map(function (r) {
+        return '<tr><td><b>' + esc(r.name) + '</b><div class="sub">' + esc(KIND_LABEL[r.kind] || r.kind) + (r.synthetic ? ' · synthetic' : '') + '</div></td>' +
+          '<td><span class="chip ' + (r.status === 'Ready' ? 'ok' : r.status === 'Does not comply' ? 'bad' : 'warn') + '">' + esc(r.status) + '</span></td>' +
+          '<td>' + r.factsConfirmed + ' of ' + r.factsTotal + '</td>' +
+          '<td><span class="chip ' + (r.report === 'Approved' ? 'ok' : r.report === 'Waiting for approval' ? 'warn' : 'plain') + '">' + esc(r.report) + '</span></td>' +
+          '<td>' + (r.schedule6.score === null ? 'Data not available' : r.schedule6.score + ' of ' + r.schedule6.of) + '<div class="sub">' + (r.schedule6.run ? 'from the latest run' : 'not run yet; coverage as filed') + '</div></td>' +
+          '<td>' + r.openFlags + '</td><td>' + r.openDiligence + '</td><td>' + (r.overdue ? '<span class="chip bad">' + r.overdue + '</span>' : '0') + '</td>' +
+          '<td>' + (r.nextAction ? esc(r.nextAction.title) + '<div class="sub">' + esc(r.nextAction.who || '') + '</div>' : '—') + '</td>' +
+          '<td><button class="btn" data-act="deal-open" data-id="' + esc(r.id) + '">Open</button></td></tr>';
+      }).join('') : '<tr><td colspan="10" class="sub">No deals match.</td></tr>') + '</table></div></div>';
+    return header() + '<main class="wrap" id="main" tabindex="-1">' + (app.flash ? '<div class="flash" role="status">' + esc(app.flash) + '</div>' : '') + stepsCarousel() + inner + '</main>' + (app.ask ? drawer() : '') + (app.help ? helpPanel() : '') + modalHtml();
+  };
+
+  VIEW['projects'] = function () {
+    var s = S(), p = M.myProjects(s, app.deal);
+    if (external() && can('view_drafts')) {   // external counsel reads the drafts addressed to them, nothing internal
+      return shell('<div class="card"><h1>My projects</h1><p class="sub">Drafts the deal team has saved for counsel.</p>' + (p.drafts.length ? p.drafts.map(function (d) {
+        return '<div class="todo"><span class="num">✉</span><div><b>' + esc(d.subject) + '</b><div class="sub">' + esc(stamp(d.at)) + ', ' + esc(d.by) + '</div></div><button class="btn" data-act="draft-edit" data-id="' + d.id + '">Open</button></div>'; }).join('') :
+        '<p class="sub">No drafts yet.</p>') + '</div>', true);
+    }
+    var inner = '<div class="card"><h1>My projects</h1><p class="sub">Your saved work across this deal: review runs, review projects, opinions and counsel drafts. Everything is saved in this browser and resumes where you left off.</p></div>' +
+      '<div class="card" style="margin-top:24px"><h3>Review projects</h3>' + (p.reviews.length ? p.reviews.map(function (r) {
+        return '<div class="todo"><span class="num">' + r.findings.length + '</span><div><b>' + esc(r.name) + '</b><div class="sub">' + esc(r.status) + ' · updated ' + esc(stamp(r.ranAt || r.createdAt)) + '</div></div><button class="btn" data-act="review-open" data-id="' + r.id + '">Open</button></div>'; }).join('') :
+        '<p class="sub">No review projects yet.</p><p><button class="btn" data-act="nav" data-view="review">+ Open Review Module</button></p>') + '</div>' +
+      '<div class="card" style="margin-top:24px"><h3>DRHP run history</h3>' + (p.runs.length ? '<div class="tblw"><table><tr><th scope="col">Run</th><th scope="col">When</th><th scope="col">Score</th></tr>' + p.runs.map(function (r) {
+        return '<tr><td>' + r.no + '</td><td class="cite">' + esc(stamp(r.at)) + '</td><td>' + r.score + ' of ' + r.of + '</td></tr>'; }).join('') + '</table></div>' : '<p class="sub">No DRHP runs yet.</p>') + '</div>' +
+      '<div class="card" style="margin-top:24px"><h3>Authenticity opinions</h3>' + (p.opinions.length ? p.opinions.map(function (o) {
+        return '<p style="margin:4px 0">' + sc(o.overall) + ' ' + esc(o.title) + ' <span class="sub">' + esc(stamp(o.at)) + '</span></p>'; }).join('') : '<p class="sub">None yet.</p>') + '</div>' +
+      '<div class="card" style="margin-top:24px"><h3>Saved drafts to counsel</h3>' + (p.drafts.length ? p.drafts.map(function (d) {
+        return '<div class="todo"><span class="num">✉</span><div><b>' + esc(d.subject) + '</b><div class="sub">' + esc(stamp(d.at)) + ' · ' + esc(d.by) + '</div></div><button class="btn" data-act="draft-edit" data-id="' + d.id + '">Open</button></div>'; }).join('') :
+        '<p class="sub">No saved drafts yet. Save one from DRHP Review.</p>') + '</div>';
+    return shell(inner, true);
+  };
+
+  // E15-7: the Evidence vault is the one place documents are uploaded; every module picks from it.
+  VIEW['vault'] = function () {
+    var s = S(), lib = M.library(s, app.deal), rows = M.evidence(s), pend = rows.filter(function (r) { return r.status === 'Itemisation pending'; }).length;
+    var issuer = external();
+    var docs = '<div class="card"><h1>Evidence vault</h1><p class="sub">The deal\'s one folder. Upload here; every review picks its documents from this list.</p>' +
+      (can('file_document') ? '<div class="row" style="align-items:flex-end;margin-top:8px"><label class="field" style="flex:1 1 280px"><span>Upload a document (name)</span>' +
+        '<input type="text" id="doc_name" placeholder="e.g. Capital structure table.xlsx"></label><button class="btn p" data-act="vault-upload" data-busy="Uploading…">Upload</button></div>' +
+        '<p class="sub" style="margin-top:8px">Word, PDF, Excel, CSV, PPT or images. It is filed by category from its name. The demonstration records names and reads nothing.</p>' : '') +
+      (can('add_documents') ? '<div class="row" style="align-items:flex-end;margin-top:16px"><label class="field" style="flex:1 1 280px"><span>Or add a shared link (data room, drive or filing page)</span>' +
+        '<input id="link" placeholder="e.g. https://dataroom.example/torrent-gas"></label><button class="btn" data-act="ingest-link">Add link</button>' +
+        '<button class="btn" data-act="ingest-folder">Add the deal folder</button></div>' +
+        (s.docs.shareholding !== 'ready' ? '<p style="margin-top:16px"><span class="chip warn">Missing</span> The shareholding pattern, needed for Reg 14. <button class="btn" data-act="add-shareholding">Add the shareholding pattern</button></p>' : '') +
+        (!s.lockin.tranchesReceived ? '<p style="margin-top:8px"><span class="chip warn">Missing</span> The locked-in tranche table, needed for Reg 16. <button class="btn" data-act="tranches">Mark the tranche table as received</button></p>' : '') : '') +
+      (function () { var by = M.filedByCategory(s, app.deal), ks = Object.keys(by).filter(function (k) { return by[k]; });
+        return '<h3 style="margin-top:16px">Filed by category</h3><p>' + ks.map(function (k) { return '<span class="chip plain">' + esc(k) + ': ' + by[k] + '</span> '; }).join('') + '</p>'; })() +
+      '<div class="tblw' + fr('vault') + '" style="margin-top:16px"><table><tr><th scope="col">Document</th><th scope="col">Category</th><th scope="col">From</th><th scope="col">Status</th>' + (issuer ? '' : '<th scope="col">Used in</th>') + '</tr>' +
+      lib.map(function (d) {
+        var use = issuer ? null : M.docUsage(s, d.name);
+        return '<tr><td>' + esc(d.name) + '</td><td>' + esc(d.category) + '</td><td>' + esc(d.source) + '</td><td><span class="chip ' + (/OCR/.test(d.parse || '') ? 'warn' : 'ok') + '">' + esc(d.parse || 'parsed') + '</span></td>' +
+          (issuer ? '' : '<td>' + (use.length ? esc(use.join('; ')) : '<span class="sub">Not used yet</span>') + '</td>') + '</tr>';
+      }).join('') + '</table></div></div>';
+    if (issuer) return shell(docs, true);
+    var claims = '<p class="sub">Each disclosure linked to its proof. ' + pend + ' of ' + rows.length + ' still lack evidence.</p>' +
+      '<div class="tblw"><table><tr><th scope="col">Disclosure / claim</th><th scope="col">Linked evidence</th><th scope="col">Source</th><th scope="col">Status</th></tr>' + rows.map(function (r) {
+        return '<tr><td>' + esc(r.claim) + '</td><td class="cite">' + esc(r.evidence) + '</td><td>' + esc(r.source) + '</td><td>' + sc(r.status) + '</td></tr>'; }).join('') + '</table></div>' +
+      '<p class="sub">Evidenced: confirmed by a person against the page. Verified: also recomputed by a rule. Cross-matched: also matched in a review project. Itemisation pending: not yet confirmed or not in the filing.</p>';
+    return shell(docs + acc('claims', 'Disclosures and their evidence', pend + ' of ' + rows.length + ' still lack evidence', claims, false), true);
+  };
+  // A picker of vault documents, with a way to the vault for anything not there yet.
+  function vaultPicker(id, label, names, none) {
+    return names.length ? '<label class="field" style="flex:1 1 240px"><span>' + label + '</span><select class="f" id="' + id + '">' + names.map(function (n) { return '<option>' + esc(n) + '</option>'; }).join('') + '</select></label>'
+      : '<p class="sub">' + none + '</p>';
+  }
+  function vaultLink() { return '<button class="btn lnk" data-act="nav" data-view="vault">Open the Evidence vault</button>'; }
+
+  function kpis() {
+    var s = S(), d = M.dashboard(s, app.deal), f = M.openFlags(s, app.deal), parts = [];
+    if (f.changes) parts.push(f.changes + ' version change' + (f.changes > 1 ? 's' : ''));
+    if (f.matches) parts.push(f.matches + ' difference' + (f.matches > 1 ? 's' : ''));
+    if (f.gaps) parts.push(f.gaps + ' thin or missing head' + (f.gaps > 1 ? 's' : ''));
+    if (f.checks) parts.push(f.checks + ' ICDR check' + (f.checks > 1 ? 's' : ''));
+    var flagNote = parts.length ? parts.slice(0, -1).join(', ') + (parts.length > 1 ? ' and ' : '') + parts[parts.length - 1] : 'Nothing open';
+    function tile(lab, val, note) { return '<div class="kpi"><div class="sub">' + lab + '</div><div class="big">' + val + '</div><div class="sub">' + note + '</div></div>'; }
+    return '<section class="kpis" aria-label="Deal dashboard">' +
+      tile('Completeness', d.completeness === null ? '—' : d.completeness + ' of ' + d.of, d.completeness === null ? 'Run the DRHP review' : 'ICDR Schedule VI coverage') +
+      tile('Open review flags', d.openFlags, esc(flagNote)) +
+      tile('Open diligence items', d.openDiligence, 'awaiting a materiality decision') +
+      tile('Next key date', '<span style="font-size:20px">' + esc(d.nextKeyDate.date) + '</span>', esc(d.nextKeyDate.activity)) + '</section>';
+  }
+  function flowRef() {
+    return '<section class="ref"><h2>Your flow — the three modules</h2><div class="grid">' +
+      '<div><b>1 · DRHP Review</b><p class="sub">Run the review, then accept or reject each suggested change and draft the email to counsel.</p><button class="btn" data-act="nav" data-view="drhp">Open DRHP Review</button></div>' +
+      '<div><b>2 · Review Module</b><p class="sub">Match a document against its source of truth, or get an authenticity opinion.</p><button class="btn" data-act="nav" data-view="review">Open Review Module</button></div>' +
+      '<div><b>3 · Diligence Module</b><p class="sub">Check promoters and KMP for litigation and reconcile what you find with the DRHP.</p><button class="btn" data-act="nav" data-view="diligence">Open Diligence Module</button></div></div></section>';
+  }
+  function dashboardStatus(s, extra) {
+    var top = M.topFlags(s, app.deal), ds = M.diligenceStatus(s, app.deal);
+    return '<div class="grid" style="margin-top:24px"><div class="card"><div class="spread"><h3>Top open flags</h3><button class="btn lnk" data-act="nav" data-view="drhp" aria-label="Open DRHP Review">Open</button></div>' +
+      (top.length ? top.map(function (f) { return '<div class="todo"><span>' + sevChip(f.sev) + '</span><div>' + esc(f.t) + (f.st === 'rejected' ? ' <span class="chip bad">red flag</span>' : '') + '</div><span class="cite">' + esc(f.id) + '</span></div>'; }).join('')
+        : '<p class="sub">' + (M.currentRun(s) ? 'No open suggested changes in the latest run.' : 'Run the DRHP review to list the flags.') + '</p>') + '</div>' +
+      '<div class="card"><div class="spread"><h3>Diligence status</h3><button class="btn lnk" data-act="nav" data-view="diligence" aria-label="Open Diligence Module">Open</button></div>' +
+      '<div class="' + (ds.undisclosed ? 'omission' : ds.clean ? 'clear' : 'finding') + '"><b>' + esc(ds.headline) + '</b><div class="sub">' + esc(ds.note) + '</div></div>' +
+      '<p class="sub" style="margin-top:8px">' + ds.matters + ' matter(s) in the register, ' + ds.awaiting + ' awaiting a materiality decision.</p></div>' + (extra || '') + '</div>';
+  }
+
+  /* ------------------------------------------------------------ actions */
+  function goTo(a) { app.view = a.view; if (a.factId) app.sel = a.factId; app.anchor = a.anchor || null; }
+  ACT['start'] = function () { app.view = 'login'; };
+  ACT['signout'] = function () { app.view = 'login'; app.sel = null; app.ask = false; app.flash = ''; };
+  ACT['signin'] = function () { app.view = 'home'; };
+  ACT['nav'] = function (el) { app.view = el.dataset.view; };
+  ACT['deal'] = function (el) { app.deciding = null; app.deal = el.value; app.sel = null; app.view = 'home'; ensure(); };
+  ACT['deal-open'] = function (el) { app.deciding = null; app.deal = el.dataset.id; app.sel = null; app.view = 'home'; };
+  ACT['person'] = function (el) { app.deciding = null; app.person = el.value; syncPerson(); app.sel = null; app.modal = null; { var al = D.allowedViews(app.role); if (al) app.view = al[0]; } if (!app.deal) app.view = 'nodeal'; else if (app.view === 'nodeal') app.view = 'home'; };
+  // "Switch to ECM Head": picks the first person who holds that role and is on this deal.
+  ACT['become'] = function (el) {
+    var want = el.dataset.role;
+    var p = app.people.filter(function (x) { return x.role === want && x.deals.indexOf(app.deal) >= 0; })[0];
+    if (p) { app.person = p.id; syncPerson(); } else app.flash = 'Nobody with that role is on this deal team.';
+  };
+  ACT['member'] = function (el) {
+    var p = app.people.filter(function (x) { return x.id === el.dataset.p; })[0];
+    if (!p) return;
+    var on = p.deals.indexOf(el.dataset.d) < 0;
+    if (!D.setMember(app.people, app.role, p.id, el.dataset.d, on)) { app.flash = 'Only the firm admin changes deal teams.'; return; }
+    syncPerson();
+  };
+  ACT['next-go'] = function () { goTo(G.nextAction(S())); };
+  ACT['queue-go'] = function (el) { goTo(G.queue(S())[Number(el.dataset.i)]); };
+  ACT['task'] = function (el) { D.cycleTask(S(), Number(el.dataset.no)); };
+  ACT['ingest-folder'] = function () { if (need('add_documents')) D.ingestSource(S(), 'folder', deal().name + ' / documents'); };
+  ACT['ingest-link'] = function () { if (need('add_documents')) { var v = ($('link') && $('link').value.trim()) || 'shared link'; D.ingestSource(S(), 'link', v); } };
+  ACT['add-shareholding'] = function () { if (need('add_documents')) G.addShareholdingPattern(S()); };
+  ACT['fact-select'] = function (el) { app.sel = el.dataset.id; };
+  ACT['fact-confirm'] = function (el) {
+    if (!need('confirm_fact')) return;
+    var s = S(), f = G.byId(s, el.dataset.id), v = $('editVal') ? $('editVal').value : undefined;
+    var ok = G.confirmFact(s, el.dataset.id, v === '' ? undefined : v);
+    if (!ok) { app.flash = 'Enter a number from the document to confirm this fact.'; return; }
+    var nxt = s.facts.filter(function (x) { return x.status !== 'confirmed'; })[0];
+    app.sel = nxt ? nxt.id : f.id;
+  };
+  ACT['fact-flag'] = function (el) { if (need('flag_fact')) G.flagFact(S(), el.dataset.id); };
+  ACT['pb-confirm'] = function () {
+    if (!need('change_price_band')) return;
+    if (!G.confirmPriceBand(S(), $('pbFloor').value, $('pbCap').value)) app.flash = 'Enter both the floor and the cap as numbers.';
+  };
+  ACT['tranches'] = function () { if (need('add_documents')) G.receiveTranches(S()); };
+  ACT['judge-accept'] = function (el) {
+    var n = $('jn_' + el.dataset.id); if (!need('record_judgement', 'Only the ECM Head records a judgement.')) return;
+    D.recordJudgement(S(), app.role, el.dataset.id, 'accept', n ? n.value : '');
+  };
+  ACT['judge-escalate'] = function (el) {
+    var n = $('jn_' + el.dataset.id); if (!need('record_judgement', 'Only the ECM Head records a judgement.')) return;
+    D.recordJudgement(S(), app.role, el.dataset.id, 'escalate', n ? n.value : '');
+  };
+  ACT['house-yes'] = function (el) { if (need('assess_house_rule')) D.setHouseRuleResult(S(), app.role, el.dataset.id, true); };
+  ACT['house-no'] = function (el) { if (need('assess_house_rule')) D.setHouseRuleResult(S(), app.role, el.dataset.id, false); };
+  ACT['generate'] = function () { if (need('generate_report')) { if (!G.generateReport(S())) app.flash = 'The report is not ready. See what it is waiting on.'; } };
+  ACT['approve'] = function () { if (need('approve_report', 'Only the ECM Head approves the report.')) D.approveReport(S(), app.role); };
+  ACT['advance'] = function () { S().stageClosed = true; };
+  ACT['download-report'] = function () { download(deal().id + '-review-report.txt', D.reportText(S())); };
+  ACT['print-report'] = function () { window.print(); };
+  ACT['download-report-doc'] = function () { download(deal().id + '-review-report.doc', D.reportHtml(S()), 'application/msword'); };
+  function whoSlug() { return app.auditWho ? '-' + app.auditWho.replace(/[^A-Za-z0-9]+/g, '-').replace(/-+$/, '').toLowerCase() : ''; }
+  ACT['download-audit-doc'] = function () { if (need('export_audit')) download(deal().id + '-audit-trail' + whoSlug() + '.doc', D.auditHtml(S(), app.auditWho), 'application/msword'); };
+  ACT['download-audit'] = function () { if (need('export_audit')) download(deal().id + '-audit-trail' + whoSlug() + '.txt', D.auditToText(S(), app.auditWho)); };
+  ACT['audit-who'] = function (el) { app.auditWho = el.value; };
+  ACT['download-review-doc'] = function () { var h = M.reviewReportHtml(S(), app.deal); if (h) download(deal().id + '-drhp-review-report.doc', h, 'application/msword'); };
+  function depDecide(el, status) {
+    var ok = D.reviewDependency(depsOf(S()), app.role, Number(el.dataset.t), Number(el.dataset.d), status, S().audit);
+    if (!ok) app.flash = 'Only the ECM Head accepts or rejects a dependency.';
+  }
+  ACT['dep-accept'] = function (el) { depDecide(el, 'accepted'); };
+  ACT['dep-reject'] = function (el) { depDecide(el, 'rejected'); };
+  ACT['dep-reset'] = function (el) { depDecide(el, 'proposed'); };
+  ACT['dep-filter'] = function (el) { app.depFilter = el.value; app.depShow = 20; };
+  ACT['dep-more'] = function () { app.depShow += 20; };
+  function krDecide(el, status) {
+    var n = $(el.dataset.n);
+    var ok = D.reviewKeyField(app.keyreview, app.role, el.dataset.s, el.dataset.f, status, n ? n.value : '');
+    if (!ok) app.flash = status === 'disputed' && !(n && n.value.trim()) ? 'Write a note saying what the page shows before disputing a value.' : 'Only BRLM reviewers and ECM Heads decide answer-key fields.';
+  }
+  ACT['kr-confirm'] = function (el) { krDecide(el, 'confirmed'); };
+  ACT['kr-dispute'] = function (el) { krDecide(el, 'disputed'); };
+  ACT['kr-reset'] = function (el) { krDecide(el, 'pending'); };
+  ACT['kr-filing'] = function (el) { app.krFiling = el.value; app.krShow = 12; };
+  ACT['kr-status'] = function (el) { app.krStatus = el.value; app.krShow = 12; };
+  ACT['kr-more'] = function () { app.krShow += 12; };
+  ACT['kr-download'] = function () { download('answer-key-review.csv', D.keyReviewCsv(app.keyreview), 'text/csv'); };
+  ACT['theme-toggle'] = function () { setTheme(app.theme === 'dark' ? 'light' : 'dark'); };
+  ACT['hdr-toggle'] = function () {
+    app.hdr = app.hdr === 'hidden' ? 'shown' : 'hidden';
+    try { localStorage.setItem(HDR_KEY, app.hdr); } catch (e) { /* ignore */ }
+  };
+  ACT['fullscreen'] = function () {
+    var de = document.documentElement;
+    var msg = 'Full screen is not available in this browser or window.';
+    try {
+      var p = fullscreenOn() ? (document.exitFullscreen || document.webkitExitFullscreen).call(document)
+        : (de.requestFullscreen || de.webkitRequestFullscreen).call(de);
+      if (p && p.catch) p.catch(function () { app.flash = msg; render(); });
+    } catch (e) { app.flash = msg; }
+  };
+  ACT['set-tab'] = function (el) { app.tab = el.dataset.tab; };
+  ACT['hr-add'] = function () {
+    if (!need('edit_house_rules', 'Only the firm admin adds house rules.')) return;
+    var ok = D.addHouseRule(S(), app.role, { head: $('hrHead').value, text: $('hrText').value, owner: $('hrOwner').value });
+    if (!ok) app.flash = 'Type the rule first.';
+  };
+  ACT['user-role'] = function (el) {
+    if (!D.setPersonRole(app.people, app.role, el.dataset.id, el.value)) { app.flash = 'Only the firm admin changes roles.'; return; }
+    syncPerson();
+  };
+  ACT['host'] = function (el) { app.host = el.dataset.opt; };
+  ACT['brand'] = function (el) { app.brand = el.dataset.brand; applyBrand(); };
+  ACT['ask-toggle'] = function () { app.ask = !app.ask; };
+  ACT['help-toggle'] = function () { app.help = !app.help; };
+  ACT['side-toggle'] = function () {
+    app.side = app.side === 'rail' ? 'shown' : 'rail';
+    try { localStorage.setItem(SIDE_KEY, app.side); } catch (e) { /* ignore */ }
+  };
+  ACT['section-toggle'] = function (el) { app.open = app.open || {}; app.open[el.dataset.k] = el.dataset.open !== 'true'; };
+  ACT['gaps-toggle'] = function () { app.gaps = app.gaps === false; };
+  ACT['tasks-toggle'] = function () { app.allTasks = !app.allTasks; };
+  ACT['review-tab'] = function (el) { app.rtab = el.dataset.t; };
+  ACT['dil-tab'] = function (el) { app.dtab = el.dataset.t; };
+  ACT['guide-toggle'] = function () { app.guide = app.guide || {}; app.guide.open = app.guide.open !== true; };
+  ACT['guide-prev'] = function () { var p = Guide.progress(app.role, guideCtx()); app.guide = app.guide || {}; var i = app.guide.i == null ? Guide.start(p) : app.guide.i; app.guide.i = Guide.clamp(i - 1, p.total); };
+  ACT['guide-next'] = function () { var p = Guide.progress(app.role, guideCtx()); app.guide = app.guide || {}; var i = app.guide.i == null ? Guide.start(p) : app.guide.i; app.guide.i = Guide.clamp(i + 1, p.total); };
+  ACT['guide-jump'] = function (el) { app.guide = app.guide || {}; app.guide.i = parseInt(el.dataset.i, 10); };
+  ACT['guide-go'] = function (el) {
+    var p = Guide.progress(app.role, guideCtx()), st = p.steps[parseInt(el.dataset.i, 10)];
+    if (!st) return;
+    if (st.deal && st.deal !== app.deal) {
+      var ok = visibleDeals().some(function (d) { return d.id === st.deal; });
+      if (!ok) { app.flash = 'This step is on ' + dealNameOf(st.deal) + ', which is not on your deal team. Ask the firm admin, or switch person.'; return; }
+      app.deal = st.deal; ensure();
+    }
+    app.view = st.view; app.guide = app.guide || {}; app.guide.i = null; app.sel = null;
+  };
+  ACT['confirm-scan'] = function (el) { if (!D.confirmScan(S(), app.role, el.dataset.file)) app.flash = 'Your role (' + D.ROLE_LABEL[app.role] + ') cannot confirm scanned files.'; };
+  /* ---- module actions (E10); the role is enforced in modules.js, these only report the outcome ---- */
+  function said(ok, good, bad) { app.flash = ok ? good : bad; }
+  ACT['run-drhp'] = function () {
+    var skip = app.drhpSkip || {}, chosen = M.library(S(), app.deal).map(function (d) { return d.name; }).filter(function (n) { return !skip[n]; });
+    var r = M.runDrhpReview(S(), app.role, app.deal, undefined, chosen);
+    said(r, r && ('DRHP review run ' + r.no + ': ' + r.score + ' of ' + r.of + ' heads present; ' + (r.blocking + r.review + r.verified) + ' findings (' + r.blocking + ' blocking, ' +
+      r.review + ' review, ' + r.verified + ' verified). Saved to run history.'),
+      'Your role (' + D.ROLE_LABEL[app.role] + ') cannot run the review, or no filing coverage is held for this deal.');
+    if (r) { app.scan = { run: r.id, i: reduced() ? r.sections.length : 0 }; scanTick(); }
+  };
+  // The scan is computed at once; only the screen walks through it, one section at a time, unless motion is reduced.
+  var scanTimer = null;
+  function reduced() { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+  function scanTick() {
+    clearTimeout(scanTimer);
+    var r = app.scan && M.runs(S()).filter(function (x) { return x.id === app.scan.run; })[0];
+    if (!r || app.scan.i >= r.sections.length) return;
+    // A re-render rebuilds the page, so it waits while a dialog is open or someone is typing; the scan still advances.
+    scanTimer = setTimeout(function () {
+      if (!app.scan) return;
+      app.scan.i++;
+      var a = document.activeElement;
+      if (!app.modal && !(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName))) render();
+      scanTick();
+    }, 420);
+  }
+  ACT['scan-skip'] = function () { clearTimeout(scanTimer); if (app.scan) app.scan.i = 999; };
+  ACT['scan-close'] = function () { clearTimeout(scanTimer); app.scan = null; };
+  ACT['history-open'] = function () { app.histOpen = true; app.open = app.open || {}; app.open.history = true; app.anchor = 'acc_history'; };
+  ACT['run-open'] = function (el) {
+    var r = M.openRun(S(), app.role, el.dataset.id);
+    said(r, r && ('Loaded run ' + r.no + ' from ' + stamp(r.at) + '.'), 'That run is not in the history.');
+    if (r) { app.open = app.open || {}; app.open.changes = true; app.anchor = 'acc_changes'; }
+  };
+
+  ACT['sug-toggle'] = function (el) { app.sugOpen = app.sugOpen || {}; app.sugOpen[el.dataset.id] = !app.sugOpen[el.dataset.id]; };
+  /* ---- E15-2/3: the shared decision control ---- */
+  ACT['dec-start'] = function (el) { app.deciding = { k: el.dataset.k, d: el.dataset.d }; };
+  ACT['dec-cancel'] = function () { app.deciding = null; };
+  function decDispatch(k, fn) {
+    var p = k.split('|'), s = S();
+    if (p[0] === 'sug') return fn.sug(s, p[1], p[2]);
+    if (p[0] === 'ver') return fn.ver(s, p[1]);
+    if (p[0] === 'mat') return fn.mat(s, p[1], p[2]);
+    if (p[0] === 'op') return fn.op(s, p[1], parseInt(p[2], 10));
+    return false;
+  }
+  ACT['dec-do'] = function () {
+    var dc = app.deciding;
+    if (!dc) return;
+    var d = dc.d, note = $('dn_note') ? $('dn_note').value : '';
+    var ok = decDispatch(dc.k, {
+      sug: function (s, run, id) { return M.decideSuggestion(s, app.role, run, id, d, note); },
+      ver: function (s, id) { return M.decideChange(s, app.role, app.deal, id, d, note); },
+      mat: function (s, rv, fact) { return M.decideMatch(s, app.role, rv, fact, d, note); },
+      op: function (s, op, i) { return M.confirmFinding(s, app.role, op, i, d, note); }
+    });
+    if (ok) { app.deciding = null; app.flash = can('override_decision') ? 'Override recorded. The item is locked until you reopen it.' : 'Decision recorded.'; }
+    else app.flash = !String(note).trim() ? 'Add a note: one is required to reject, dismiss or override.' : 'This decision was not recorded: the item may be locked by an ECM Head override.';
+  };
+  ACT['dec-reopen'] = function (el) {
+    var ok = decDispatch(el.dataset.k, {
+      sug: function (s, run, id) { return M.reopenSuggestion(s, app.role, run, id); },
+      ver: function (s, id) { return M.reopenChange(s, app.role, id); },
+      mat: function (s, rv, fact) { return M.reopenMatch(s, app.role, rv, fact); },
+      op: function (s, op, i) { return M.reopenFinding(s, app.role, op, i); }
+    });
+    said(ok, 'Reopened for the BRLM reviewer.', 'Only the ECM Head reopens an override.');
+  };
+  ACT['save-changes'] = function () {
+    said(M.saveChangesDraft(S(), app.role, app.deal), 'Draft of changes saved. Find it under Saved drafts or My projects.', 'Run the review first, and use a role that may save drafts.');
+  };
+  ACT['send-app'] = function () { app.flash = 'Not sent: no mail account is connected in this demonstration. Use Copy, a download or Save draft.'; };
+  ACT['portfolio-filter-kind'] = function (el) { app.pf = app.pf || { kind: '', status: '' }; app.pf.kind = el.value; };
+  ACT['portfolio-filter-status'] = function (el) { app.pf = app.pf || { kind: '', status: '' }; app.pf.status = el.value; };
+  ACT['history-toggle'] = function () { app.hist = !app.hist; };
+  ACT['report-open'] = function () { app.modal = { kind: 'report' }; };
+  ACT['copy-report-review'] = function () { copyText(M.reviewReport(S(), app.deal) || ''); };
+  ACT['vault-upload'] = function () {
+    var n = $('doc_name'), r = M.fileDocument(S(), app.role, n ? n.value : '');
+    said(r, r && ('In the Evidence vault, filed under ' + r.category + '.'), 'Enter a document name. Your role must be allowed to upload documents.');
+  };
+  ACT['drhp-doc'] = function (el) { app.drhpSkip = app.drhpSkip || {}; app.drhpSkip[el.dataset.name] = !el.checked; };
+  ACT['vtab'] = function (el) { app.vtab = el.dataset.t; };
+  ACT['link-evidence'] = function (el) {
+    var n = $('ev_' + el.dataset.ref.replace(/[^A-Za-z0-9]/g, '_'));
+    said(M.linkEvidence(S(), app.role, app.deal, el.dataset.ref, n ? n.value : ''), 'Evidence linked from the Evidence vault.', 'Pick a vault document, and use a role that may save to the register.');
+  };
+
+  ACT['draft-open'] = function () { var e = M.counselEmail(S(), app.deal); app.modal = { kind: 'counsel', subject: e.subject, body: e.body }; };
+  ACT['draft-edit'] = function (el) {
+    var d = M.savedDrafts(S(), app.deal).filter(function (x) { return x.id === el.dataset.id; })[0];
+    if (d) app.modal = { kind: 'counsel', subject: d.subject, body: d.body };
+  };
+  ACT['draft-remove'] = function (el) { said(M.removeDraft(S(), app.role, app.deal, el.dataset.id), 'Draft removed.', 'Your role cannot remove drafts.'); };
+  ACT['drafts-toggle'] = function () { app.drafts = !app.drafts; };
+  ACT['save-draft-modal'] = function () {
+    var m = app.modal, d = M.saveDraft(S(), app.role, app.deal, m && m.subject, m && m.body);
+    said(d, 'Draft saved. Find it under Saved drafts.', 'Add a subject and a message, and use a role that may save drafts.');
+  };
+  function copyText(txt) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt); app.flash = 'Copied.'; return; }
+    } catch (e) { /* fall through */ }
+    app.flash = 'Copy is not available in this browser. Use the download instead.';
+  }
+  ACT['copy-draft'] = function () { copyText(app.modal ? app.modal.subject + '\n\n' + app.modal.body : ''); };
+  ACT['download-draft-doc'] = function () { download(deal().id + '-counsel-draft.doc', M.draftHtml(app.modal), 'application/msword'); };
+  ACT['download-draft-txt'] = function () { download(deal().id + '-counsel-draft.txt', M.draftText(app.modal)); };
+  ACT['mailbox'] = function () { app.flash = 'No mail service is connected in this demonstration. Use Copy or a download.'; };
+  ACT['modal-close'] = function () { app.modal = null; };
+  ACT['modal-close-bg'] = function () { app.modal = null; };
+  ACT['newreview-open'] = function () { app.modal = { kind: 'newreview' }; };
+  ACT['new-review'] = function () {
+    var n = $('nr_name'), p = M.newReview(S(), app.role, n ? n.value : '');
+    if (p) { app.rv = p.id; app.modal = null; app.flash = 'Review project created.'; } else app.flash = 'Name the project, and use a role that may create reviews.';
+  };
+  ACT['review-open'] = function (el) { app.rv = el.dataset.id; app.view = 'review'; };
+  ACT['add-file'] = function (el) {
+    var n = $('zf_' + el.dataset.side);
+    said(M.addReviewFile(S(), app.role, el.dataset.id, el.dataset.side, n ? n.value : ''), 'Added from the Evidence vault.',
+      'Pick a document from the Evidence vault, and use a role that may work on review projects.');
+  };
+  ACT['run-project'] = function (el) {
+    var r = M.runReviewProject(S(), app.role, el.dataset.id);
+    if (r && r.error) { app.flash = r.error; return; }
+    said(r, r && ('Review run complete — ' + r.findings.length + ' fields compared, ' + r.findings.filter(function (f) { return f.status === 'Differs'; }).length +
+      ' differ. Findings saved to the project.'), 'Your role cannot run a review.');
+  };
+  ACT['save-project'] = function (el) { said(M.saveReviewProject(S(), app.role, el.dataset.id), 'Project saved — resume any time.', 'Your role cannot save review projects.'); };
+  ACT['op-type'] = function (el) { app.opType = el.value; };
+  ACT['run-intel'] = function () {
+    var od = $('op_doc') ? $('op_doc').value : '';
+    var o = M.runIntelligence(S(), app.role, app.opType || M.DOC_TYPES[0].id, undefined, od || undefined);
+    if (o) { app.opId = o.id; app.flash = 'Opinion: ' + o.overall + '. A decision-support signal, not verification.'; } else app.flash = 'Your role cannot run the intelligence check.';
+  };
+
+  ACT['run-check'] = function () {
+    var kind = $('kmp_kind').value, val = $('kmp_val').value, r = M.kmpCheck(S(), app.role, app.deal, kind, val);
+    app.kmp = { kind: kind, value: val, result: r || null };
+    if (!r) app.flash = 'Enter a value, and use a role that may run checks.';
+  };
+  ACT['save-register'] = function (el) { said(M.saveToRegister(S(), app.role, app.deal, el.dataset.ref), 'Saved to the register.', 'Your role cannot save to the register.'); };
+  ACT['materiality'] = function (el) {
+    var n = $('mt_' + el.dataset.ref.replace(/[^A-Za-z0-9]/g, '_'));
+    said(M.setMateriality(S(), app.role, app.deal, el.dataset.ref, el.dataset.v, n ? n.value : ''), 'Materiality recorded.',
+      'Only the ECM Head decides materiality, and a reason is required.');
+  };
+  ACT['assign-open'] = function () { app.modal = { kind: 'assign' }; };
+  ACT['assign-agent'] = function () {
+    var a = M.assignAgent(S(), app.role, app.deal, $('ag_sel').value, $('ag_task').value);
+    if (a) { app.modal = null; app.flash = 'Assigned ' + a.name + ' (' + a.field + ').'; } else app.flash = 'Only the ECM Head assigns, and a task is required.';
+  };
+  ACT['assign-status'] = function (el) {
+    var a = M.assignments(S(), app.deal).filter(function (x) { return x.id === el.dataset.id; })[0];
+    if (!a) return;
+    var order = ['Assigned', 'In progress', 'Done'];
+    M.setAssignmentStatus(S(), app.role, a.id, order[(order.indexOf(a.status) + 1) % 3]);
+  };
+  ACT['houserule-open'] = function () { app.modal = { kind: 'houserule' }; };
+  ACT['add-house-rule-modal'] = function () {
+    var ok = D.addHouseRule(S(), app.role, { head: $('hr_head').value, text: $('hr_text').value, owner: 'Compliance' });
+    if (ok) { app.modal = null; app.flash = 'House rule added to the checklist.'; } else app.flash = 'Enter the rule; only the firm admin adds house rules.';
+  };
+
+
+  function askAndLog(label, key) {
+    var a = D.answer(S(), key);
+    app.askLog.push({ q: label, a: a });
+    D.logQuestion(S(), app.role, label, a);       // recorded separately, so answering never changes the deal itself
+  }
+  ACT['ask-q'] = function (el) { var q = el.dataset.q, label = (SUGGEST.filter(function (x) { return x[0] === q; })[0] || [0, q])[1]; askAndLog(label, q); };
+  ACT['ask-send'] = function () { var v = $('askText') ? $('askText').value.trim() : ''; if (!v) return; askAndLog(v, D.askKey(v)); };
+
+  function applyBrand() {
+    var b = BRANDS[app.brand] || BRANDS.burgundy, st = document.documentElement.style;
+    document.documentElement.dataset.theme = app.theme === 'dark' ? 'dark' : 'light';
+    st.setProperty('--header-bg', b[0]);          // the header carries the firm colour in both themes
+    if (app.theme === 'dark') { st.removeProperty('--brand'); st.removeProperty('--brand-soft'); }
+    else { st.setProperty('--brand', b[0]); st.setProperty('--brand-soft', b[1]); }
+    document.body.classList.toggle('hdr-hidden', app.hdr === 'hidden');
+  }
+
+  /* ------------------------------------------------------------ run */
+  var lastView = null;
+  function render() {
+    applyBrand();
+    var root = $('root');
+    if (app.view !== 'splash' && app.view !== 'login' && app.view !== 'keyreview' && !app.deal) app.view = 'nodeal';
+    if (app.view === 'portfolio' && !can('view_portfolio')) app.view = 'home';
+    var allowed = D.allowedViews(app.role);
+    if (allowed && app.view !== 'splash' && app.view !== 'login' && allowed.indexOf(app.view) < 0) app.view = allowed[0];
+    root.innerHTML = (VIEW[app.view] || VIEW['home'])();
+    if (app.anchor && $(app.anchor)) { $(app.anchor).scrollIntoView({ block: 'center' }); }
+    else if (lastView !== app.view) window.scrollTo(0, 0);
+    app.visited = app.visited || {}; app.visited[app.view] = true;
+    document.body.classList.toggle('has-modal', !!app.modal);
+    document.body.classList.toggle('has-side', app.view !== 'splash' && app.view !== 'login');
+    document.body.classList.toggle('side-rail', app.side === 'rail');
+    if (app.modal) { var mf = document.querySelector('.modal input,.modal textarea,.modal select'); if (mf) mf.focus(); }
+    app.anchor = null; lastView = app.view;
+  }
+  // E15-1: a run or save button shows it is working (label, spinner, aria-busy) and cannot be clicked twice; the action
+  // runs a moment later so the change is seen, and the result it produced is highlighted once.
+  var FRESH = { 'run-project': 'project', 'run-intel': 'intel', 'run-check': 'kmp', 'save-project': 'project', 'vault-upload': 'vault' };
+  function fr(k) { return app.fresh === k ? ' fresh' : ''; }
+  function run(el) {
+    var fn = ACT[el.dataset.act];
+    if (!fn) return;
+    if (el.dataset.busy && !el.dataset.going) {
+      el.dataset.going = '1'; el.disabled = true; el.setAttribute('aria-busy', 'true'); el.classList.add('busy'); el.textContent = el.dataset.busy;
+      setTimeout(function () { app.fresh = FRESH[el.dataset.act] || null; perform(el, fn); }, 600);
+      return;
+    }
+    perform(el, fn);
+  }
+  function perform(el, fn) {
+    app.flash = '';
+    // E15-5: actions are recorded under the person, with their role: "S. Iyer (BRLM reviewer)".
+    if (S()) S().actor = person().name + ' (' + D.ROLE_LABEL[app.role] + ')';
+    if (app.modal && app.modal.kind === 'counsel' && $('md_sub')) { app.modal.subject = $('md_sub').value; app.modal.body = $('md_body').value; }
+    fn(el);
+    save(); render();
+    app.fresh = null;   // highlighted on this render only
+  }
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-act]');
+    if (!el || el.disabled) return;
+    var tag = el.tagName;
+    if (tag === 'SELECT' || tag === 'INPUT' || tag === 'TEXTAREA') return;
+    run(el);
+  });
+  document.addEventListener('change', function (e) {
+    var el = e.target;
+    if (el.tagName === 'SELECT' && el.dataset.phFor) applyPh(el);    // no re-render, so nothing typed is lost
+    if ((el.tagName === 'SELECT' || el.type === 'checkbox') && el.dataset.act) run(el);
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === '?' && !/INPUT|TEXTAREA|SELECT/.test((e.target.tagName || ''))) { app.help = !app.help; render(); return; }
+    if (e.key !== 'Escape') return;
+    if (app.help) { app.help = false; render(); var h = $('main'); if (h) h.focus(); return; }
+    if (app.modal) { app.modal = null; render(); var m = $('main'); if (m) m.focus(); }
+    else if (app.ask) { app.ask = false; save(); render(); var m2 = $('main'); if (m2) m2.focus(); }
+  });
+  document.addEventListener('fullscreenchange', function () { render(); });
+  document.addEventListener('webkitfullscreenchange', function () { render(); });
+  initView();
+  load();
+  render();
+})();
+</script>
+</body>
+</html>
